@@ -1,0 +1,39 @@
+import numpy as np
+import numpy.random as npr
+import matplotlib.pyplot as plt
+import hickle as hkl
+
+def make_square_ball(x, y, im_rows=20, im_cols=20, width=3, height=3, noise_sig=0.1):
+    '''
+    Generates a video with every frame as a black (T x im_rows x im_cols) image with a (width x height) white block starting at (x(t),y(t))
+    '''
+    T = x.shape[0]
+    vid = np.zeros(T, im_rows, im_cols, dtype=np.dtype(float))
+    for t in T:
+        vid[t, x[t]:x[t]+width, y[t]:y[t]+height] = 1.
+        vid[t] += npr.normal(0, noise_sig, (im_rows, im_cols))
+    return vid
+
+def generate_training_videos(N_train, storage_path):
+    '''
+    Generates videos of a square moving horizontally to the center and then randomly goes up or down
+    '''
+    gen_videos = np.array([N_train, im_rows, im_cols])
+    storage = {}
+
+    for i in range(N_train):
+        x = np.concatenate(np.arange(0,im_rows/2,2), im_rows/2*np.ones(5))
+        top = npr.binomial(1, 0.5)
+        if top:
+            storage['direction']='top'
+            
+
+        
+        gen_videos[i] = vid_generator()
+
+    f = open(storage_path, 'w')
+    hkl.dump(storage, f)
+    f.close()
+    
+    
+    
