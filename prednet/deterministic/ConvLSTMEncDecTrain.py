@@ -12,6 +12,9 @@ datapath = '/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/t
 
 
 def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
+
+    batch_size = X_train_batch.size()[0]
+    im_size = (X_train_batch.size()[2], X_train_batch.size()[3])
     
     R1_hidden = model.convLSTM1.init_hidden(batch_size, (im_size[0]/2, im_size[0]/2))
     R0_hidden = model.convLSTM0.init_hidden(batch_size, im_size)
@@ -58,7 +61,7 @@ if __name__=="__main__":
     index_array = np.arange(num_datapoints)
     batch_size = 10
     num_batches = num_datapoints/batch_size
-    learning_rate = 0.0005
+
 
     print_every = 1
     total_loss = 0 # Reset every plot_every iters
@@ -66,7 +69,6 @@ if __name__=="__main__":
     model = ConvLSTMEncDec()
     if torch.cuda.is_available():
         model.cuda()
-    print('Done')
     
     criterion = nn.MSELoss()
     optimizer = optim.RMSprop(model.parameters(), lr=0.001, alpha=0.9)
