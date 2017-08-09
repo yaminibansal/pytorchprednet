@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 from prednet.utils.ConvLSTM2dCell import ConvLSTM2dCell
+
+import numpy as np
 
 
 class ConvLSTMEncDec(nn.Module):
@@ -39,31 +42,33 @@ class PredNet(nn.Module):
         '''
         
         super(PredNet, self).__init__()
-        self.num_layers = hidden_filters.shape[0]
+        self.num_layers = len(hid_filt_size)
         self.hid_filt_size = hid_filt_size
         self.enc_filt_size = enc_filt_size
         self.pool_enc_size = pool_enc_size
         
         for layer in range(self.num_layers):
             if layer==0:
-                self.__setattr__('convLSTM'+str(layer)) = nn.Conv2d(hid_filt_size[layer+1]+enc_filt_size[layer], hid_filt_size[layer], hid_ker_size[layer], hid_ker_size[layer])
-                self.__setattr__('convDec'+str(layer)) = nn.Conv2d(hid_filt_size[layer], enc_filt_size[layer], dec_ker_size[layer])
+                self.__setattr__('convLSTM'+str(layer), ConvLSTM2dCell(hid_filt_size[layer+1]+enc_filt_size[layer], hid_filt_size[layer], hid_ker_size[layer], hid_ker_size[layer]) )
+                self.__setattr__('convDec'+str(layer), nn.Conv2d(hid_filt_size[layer], enc_filt_size[layer], dec_ker_size[layer], padding = (dec_ker_size[layer]-1)/2) ) 
                 
-            elif layer==num_layers -1 :
-                self.__setattr__('convEnc'+str(layer)) = nn.Conv2d(enc_filt_size[layer], enc_filt_size[layer+1], enc_ker_size[layer], padding = (enc_ker_size[layer]-1)/2)
-                self.__setattr__('ReLUEnc'+str(layer)) = nn.Threshold(0.0, 0.0)
-                self.__setattr__('poolEnc'+str(layer)) = nn.MaxPool2d(pool_enc_size[layer])
-                self.__setattr__('convLSTM'+str(layer)) = nn.Conv2d(hid_filt_size[layer+1]+enc_filt_size[layer], hid_filt_size[layer], hid_ker_size[layer], hid_ker_size[layer])
-                self.__setattr__('convDec'+str(layer)) = nn.Conv2d(hid_filt_size[layer], enc_filt_size[layer], dec_ker_size[layer])
-                self.__setattr__('deconvDec'+str(layer)) = nn.UpsamplingNearest2d(scale_factor=pool_enc_size[layer])
+            elif layer==self.num_layers -1 :
+                self.__setattr__('convEnc'+str(layer), nn.Conv2d(enc_filt_size[layer-1], enc_filt_size[layer], enc_ker_size[layer], padding = (enc_ker_size[layer]-1)/2) )
+                self.__setattr__('ReLUEnc'+str(layer), nn.Threshold(0.0, 0.0) )
+                self.__setattr__('poolEnc'+str(layer), nn.MaxPool2d(pool_enc_size[layer]) )
+                self.__setattr__('convLSTM'+str(layer), ConvLSTM2dCell(enc_filt_size[layer], hid_filt_size[layer], hid_ker_size[layer], hid_ker_size[layer]) )
+                self.__setattr__('convDec'+str(layer), nn.Conv2d(hid_filt_size[layer], enc_filt_size[layer], dec_ker_size[layer], padding = (dec_ker_size[layer]-1)/2) )
+                self.__setattr__('deconvDec'+str(layer), nn.UpsamplingNearest2d(scale_factor=pool_enc_size[layer]) )                
                 
             else:
-                self.__setattr__('convEnc'+str(layer)) = nn.Conv2d(enc_filt_size[layer], enc_filt_size[layer+1], enc_ker_size[layer], padding = (enc_ker_size[layer]-1)/2)
-                self.__setattr__('ReLUEnc'+str(layer)) = nn.Threshold(0.0, 0.0)
-                self.__setattr__('poolEnc'+str(layer)) = nn.MaxPool2d(pool_enc_size[layer])
-                self.__setattr__('convLSTM'+str(layer)) = nn.Conv2d(enc_filt_size[layer], hid_filt_size[layer], hid_ker_size[layer], hid_ker_size[layer])
-                self.__setattr__('convDec'+str(layer)) = nn.Conv2d(hid_filt_size[layer], enc_filt_size[layer], dec_ker_size[layer])
-                self.__setattr__('deconvDec'+str(layer)) = nn.UpsamplingNearest2d(scale_factor=pool_enc_size[layer])
+                self.__setattr__('convEnc'+str(layer), nn.Conv2d(enc_filt_size[layer-1], enc_filt_size[layer], enc_ker_size[layer], padding = (enc_ker_size[layer]-1)/2) )
+                self.__setattr__('ReLUEnc'+str(layer),  nn.Threshold(0.0, 0.0))
+                self.__setattr__('poolEnc'+str(layer), nn.MaxPool2d(pool_enc_size[layer]) )
+                self.__setattr__('convLSTM'+str(layer), ConvLSTM2dCell(hid_filt_size[layer+1]+enc_filt_size[layer], hid_filt_size[layer], hid_ker_size[layer], hid_ker_size[layer]) )
+                self.__setattr__('convDec'+str(layer),  nn.Conv2d(hid_filt_size[layer], enc_filt_size[layer], dec_ker_size[layer], padding = (dec_ker_size[layer]-1)/2) )
+                self.__setattr__('deconvDec'+str(layer),  nn.UpsamplingNearest2d(scale_factor=pool_enc_size[layer]) )
+                
+
                 
     def forward(self, input, hidden):
         '''
@@ -82,8 +87,8 @@ class PredNet(nn.Module):
         for layer in range(self.num_layers):
             if layer == 0:
                 A[layer] = input
-            elif layer == 1:
-                A[layer] = self.__getattr__('poolEnc'+str(layer))(self.__getattr__('ReLUEnc'+str(layer))(self.__getattr__('convEnc'+str(layer))(input)))
+            else:
+                A[layer] = self.__getattr__('poolEnc'+str(layer))(self.__getattr__('ReLUEnc'+str(layer))(self.__getattr__('convEnc'+str(layer))(A[layer-1])))
 
         # Compute the predictions and calculate the errors
         for layer in range(self.num_layers):
@@ -91,13 +96,14 @@ class PredNet(nn.Module):
             E[layer] = A[layer] - Ahat[layer]
 
         # Update hidden states through the decoder state
-        for layer in np.arange(self.num_layers-1, 0, -1):
-            if layer == num_layers-1:
+        for layer in np.arange(self.num_layers-1, -1, -1):
+            if layer == self.num_layers-1:
                 Rin[layer] = E[layer]
-                R[layer] = self.__getattr__('convLSTM'+str(layer))(Rin[layer], hidden[layer][0])
+                R[layer] = self.__getattr__('convLSTM'+str(layer))(Rin[layer], hidden[layer])
             else:
-                Rin[layer] = torch.cat((self.__getattr__('deconvDec', str(layer))(R[l]), E[layer]), dim=1)
-                R[layer] = self.__getattr__('convLSTM'+str(layer))(Rin[layer], hidden[layer][0])
+                Rin[layer] = torch.cat( (self.__getattr__('deconvDec'+ str(layer+1))(R[layer+1][0]), E[layer]), dim=1 )
+                R[layer] = self.__getattr__('convLSTM'+str(layer))(Rin[layer], hidden[layer])
+
 
         # Produce the output
         output = self.__getattr__('convDec'+str(0))(R[0][0])
@@ -112,20 +118,25 @@ class PredNet(nn.Module):
         im_rows, im_cols = im_size
         
         R = dict.fromkeys(np.arange(0, self.num_layers, 1))
+        Rin = dict.fromkeys(np.arange(0, self.num_layers, 1))
+        E = dict.fromkeys(np.arange(0, self.num_layers, 1))
 
         for layer in range(self.num_layers):
             if layer is not 0:
-                im_rows, im_cols = im_rows/pool_enc_size[layer], im_cols/pool_enc_size[layer]
+                im_rows, im_cols = im_rows/self.pool_enc_size[layer], im_cols/self.pool_enc_size[layer]
             E[layer] = Variable(torch.zeros(batch_size, self.enc_filt_size[layer], im_rows, im_cols))
-            hidden[layer] = Variable(torch.zeros(batch_size, self.hid_filt_size[layer], im_rows, im_cols)), Variable(torch.zeros(batch_size, self.hid_filt_size, im_rows, im_cols))
+            R[layer] = Variable(torch.zeros(batch_size, self.hid_filt_size[layer], im_rows, im_cols)), Variable(torch.zeros(batch_size, self.hid_filt_size[layer], im_rows, im_cols))
+            if torch.cuda.is_available():
+                E[layer] = E[layer].cuda()
+                R[layer] = (R[layer][0].cuda(), R[layer][1].cuda())
 
         for layer in np.arange(self.num_layers-1, 0, -1):
-            if layer == num_layers-1:
+            if layer == self.num_layers-1:
                 Rin[layer] = E[layer]
-                R[layer] = self.__getattr__('convLSTM'+str(layer))(Rin[layer], hidden[layer][0])
+                R[layer] = self.__getattr__('convLSTM'+str(layer))(Rin[layer], R[layer])
             else:
-                Rin[layer] = torch.cat((self.__getattr__('deconvDec', str(layer))(R[l]), E[layer]), dim=1)
-                R[layer] = self.__getattr__('convLSTM'+str(layer))(Rin[layer], hidden[layer][0])
+                Rin[layer] = torch.cat((self.__getattr__('deconvDec'+ str(layer))(R[layer+1][0]), E[layer]), dim=1)
+                R[layer] = self.__getattr__('convLSTM'+str(layer))(Rin[layer], R[layer])
 
         return R
 

@@ -1,5 +1,7 @@
-import numpy as numpy
+import numpy as np
 import numpy.random as npr
+
+import matplotlib as plt
 
 import torch
 import torch.nn as nn
@@ -15,12 +17,9 @@ datapath = '/home/ybansal/Documents/Research/Data/FaceGen/clipsval.hkl'
 def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
 
     batch_size = X_train_batch.size()[0]
-    im_size = (X_train_batch.size()[2], X_train_batch.size()[3])
+    im_size = (X_train_batch.size()[3], X_train_batch.size()[4])
 
     R = model.init_hidden(batch_size, im_size)
-    if torch.cuda.is_available():
-        for h in R:
-            h = (h[0].cuda(), h[1].cuda())
 
     optimizer.zero_grad()
 
@@ -77,7 +76,8 @@ if __name__=="__main__":
     model = PredNet(enc_filt_size, enc_ker_size, hid_filt_size, hid_ker_size, pool_enc_size, dec_ker_size)
     if torch.cuda.is_available():
         model.cuda()
-    
+        print('Made model cuda')
+        
     criterion = nn.MSELoss()
     optimizer = optim.RMSprop(model.parameters(), lr=0.001, alpha=0.9)
 
@@ -95,3 +95,6 @@ if __name__=="__main__":
             
             if b % print_every == 0:
                 print('%s (%d %d%%) %.4f' % (timeSince(start), b, b / num_batches * 100, loss))
+
+
+    

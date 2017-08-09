@@ -6,11 +6,15 @@ import torch.optim as optim
 from torch.autograd import Variable
 from prednet.deterministic.models import ConvLSTMEncDec
 import time
+import math
 import hickle as hkl
 datapath = '/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/train.hkl'
 
 
 def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
+
+    batch_size = X_train_batch.size()[0]
+    im_size = (X_train_batch.size()[2], X_train_batch.size()[3])
     
     R1_hidden = model.convLSTM1.init_hidden(batch_size, (im_size[0]/2, im_size[0]/2))
     R0_hidden = model.convLSTM0.init_hidden(batch_size, im_size)
@@ -38,7 +42,6 @@ def timeSince(since):
     return '%dm %ds' % (m, s)
 
 if __name__=="__main__":
-    print('Enters')
     f = open(datapath, 'r')
     data_container = hkl.load(f)
     f.close()
@@ -58,8 +61,7 @@ if __name__=="__main__":
     index_array = np.arange(num_datapoints)
     batch_size = 10
     num_batches = num_datapoints/batch_size
-    learning_rate = 0.0005
-    print('Done')
+
 
     print_every = 1
     total_loss = 0 # Reset every plot_every iters
@@ -67,7 +69,6 @@ if __name__=="__main__":
     model = ConvLSTMEncDec()
     if torch.cuda.is_available():
         model.cuda()
-    print('Done')
     
     criterion = nn.MSELoss()
     optimizer = optim.RMSprop(model.parameters(), lr=0.001, alpha=0.9)
@@ -76,16 +77,13 @@ if __name__=="__main__":
 
     for n in range(num_epochs):
         npr.shuffle(index_array)
-        print('Done')
         
         for b in range(num_batches):
-            print('Done')
             X_train_batch = X_train[b*batch_size:(b+1)*batch_size]
             Y_train_batch = Y_train[b*batch_size:(b+1)*batch_size]
 
             output, loss = train(model, optimizer, criterion, X_train_batch, Y_train_batch)
             total_loss += loss
-            print('Done')
             
             if b % print_every == 0:
                 print('%s (%d %d%%) %.4f' % (timeSince(start), b, b / num_batches * 100, loss))

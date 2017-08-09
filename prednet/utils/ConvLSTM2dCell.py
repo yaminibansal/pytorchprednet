@@ -9,7 +9,7 @@ import math
 class ConvRNNCellBase(nn.Module):
 
     def __repr__(self):
-        s = '{name}({input_size}, {hidden_size}'
+        s = '{name}({in_channels}, {hidden_channels}'
         if 'bias' in self.__dict__ and self.bias is not True:
             s += ', bias={bias}'
         if 'nonlinearity' in self.__dict__ and self.nonlinearity != "tanh":
@@ -50,7 +50,7 @@ class ConvLSTM2dCell(ConvRNNCellBase):
         where \star denotes the convolution operator
 
         Args:
-        input_channels (int): Number of channels in the input  
+        in_channels (int): Number of channels in the input  
         hidden_channels (int): Number of channels in the hidden state
         in_kernel_size (int or tuple): Size of the convolving kernel for the input, must be odd
         hid_kernel_size (int or tuple): Size of the convolving kernel for the hidden state, must be odd
