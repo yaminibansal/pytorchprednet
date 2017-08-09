@@ -1,5 +1,7 @@
 import numpy as np
 import numpy.random as npr
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 import torch
 import torch.nn as nn
@@ -31,6 +33,22 @@ def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
     optimizer.step()
 
     return output, loss.data[0] / X_train_batch.size()[0]
+
+def predict(model, X_train):
+    N = X_train.size()[0]
+    num_timesteps = X_train.size()[1]
+    im_size = (X_train.size()[3], X_train.size()[4])
+
+    predicted_frames = Variable(torch.Tensor(N, num_timesteps, 1, im_size[0], im_size[1]))
+    if torch.cuda.is_available():
+        predicted_frames = predicted_frames.cuda()
+
+    R = model.init_hidden(N, im_size)
+
+    for i in range(X_train.size()[1]):
+        R, predicted_frames[:,i] = model(X_train[:,i], R)
+
+    return predicted_frames
 
 def timeSince(since):
     now = time.time()
@@ -93,3 +111,34 @@ if __name__=="__main__":
             
             if b % print_every == 0:
                 print('%s (%d %d%%) %.4f' % (timeSince(start), b, b / num_batches * 100, loss))
+
+
+        predicted_frames = predict(model, X_train[:20])
+        nt = 9
+        gs = gridspec.GridSpec(3, nt)
+        gs.update(wspace=0., hspace=0.)
+        for t in range(nt):
+            plt.subplot(gs[t])
+            plt.imshow(X_train[i,t,0,:,:].data.cpu().numpy(), interpolation='none')
+            plt.gray()
+            plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
+            if t==0: plt.ylabel('Actual', fontsize=10)
+
+            plt.subplot(gs[t + nt])
+            plt.imshow(predicted_frames[i,t,0,:,:].data.cpu().numpy(), interpolation='none')
+            plt.gray()
+            plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
+            if t==0: plt.ylabel('Predicted', fontsize=10)
+            
+            plt.subplot(gs[t + 2*nt])
+            plt.imshow(X_train[i,t,0, :,:].data.cpu().numpy()-predicted_frames[i,t,0,:,:].data.cpu().numpy(), interpolation='none')
+            plt.gray()
+            plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
+            if t==0: plt.ylabel('Predicted', fontsize=10)
+            
+        plt.show()
+
+        
+
+
+    
