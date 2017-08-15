@@ -9,11 +9,14 @@ import torch.optim as optim
 from torch.autograd import Variable
 from prednet.deterministic.models import PredNet
 
+from memory_profiler import profile
 import time
 import math
 import hickle as hkl
-datapath = '/home/ybansal/Documents/Research/Data/FaceGen/clipsval.hkl'
+#datapath = '/home/ybansal/Documents/Research/Data/FaceGen/clipsval.hkl'
+datapath = '/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/train.hkl'
 
+#@profile
 def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
 
     batch_size = X_train_batch.size()[0]
@@ -34,6 +37,7 @@ def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
 
     return output, loss.data[0] / X_train_batch.size()[0]
 
+#@profile
 def predict(model, X_train):
     N = X_train.size()[0]
     num_timesteps = X_train.size()[1]
@@ -60,10 +64,13 @@ def timeSince(since):
         
 if __name__=="__main__":
     f = open(datapath, 'r')
-    data = hkl.load(f)
+    #data = hkl.load(f)
+    data_container = hkl.load(f)
     f.close()
-    X_train = data[:,0:9]
-    Y_train = data[:,1:10]
+    #X_train = data[:,0:9]
+    #Y_train = data[:,1:10]
+    X_train = np.swapaxes(np.swapaxes(data_container['videos'][:,0:9], 3, 4), 2, 3)
+    Y_train = np.swapaxes(np.swapaxes(data_container['videos'][:,1:10], 3, 4), 2, 3)
     X_train = Variable(torch.from_numpy(X_train.astype(np.dtype('float32'))), requires_grad=False)
     Y_train = Variable(torch.from_numpy(Y_train.astype(np.dtype('float32'))), requires_grad=False)
     if torch.cuda.is_available():
@@ -82,12 +89,12 @@ if __name__=="__main__":
     print_every = 1
     total_loss = 0 # Reset every plot_every iters
 
-    enc_filt_size = (1, 32, 64, 128, 256)
-    hid_filt_size = (1, 32, 64, 128, 256)
-    enc_ker_size = (3, 3, 3, 3, 3)
-    hid_ker_size = (3, 3, 3, 3, 3)
-    dec_ker_size = (3, 3, 3, 3, 3)
-    pool_enc_size = (2, 2, 2, 2, 2)
+    enc_filt_size = (1, 32, 64)
+    hid_filt_size = (1, 32, 64)
+    enc_ker_size = (3, 3, 3)
+    hid_ker_size = (3, 3, 3)
+    dec_ker_size = (3, 3, 3)
+    pool_enc_size = (2, 2, 2)
     
     model = PredNet(enc_filt_size, enc_ker_size, hid_filt_size, hid_ker_size, pool_enc_size, dec_ker_size)
     if torch.cuda.is_available():
@@ -113,7 +120,7 @@ if __name__=="__main__":
                 print('%s (%d %d%%) %.4f' % (timeSince(start), b, b / num_batches * 100, loss))
 
 
-    i = 0
+    i = 7
     predicted_frames = predict(model, X_train[:20])
     nt = 9
     gs = gridspec.GridSpec(3, nt)

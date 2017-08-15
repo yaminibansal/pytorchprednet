@@ -8,13 +8,16 @@ from prednet.deterministic.models import ConvLSTMEncDec
 import time
 import math
 import hickle as hkl
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+
 datapath = '/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/train.hkl'
 
 
 def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
 
     batch_size = X_train_batch.size()[0]
-    im_size = (X_train_batch.size()[2], X_train_batch.size()[3])
+    im_size = (X_train_batch.size()[3], X_train_batch.size()[4])
     
     R1_hidden = model.convLSTM1.init_hidden(batch_size, (im_size[0]/2, im_size[0]/2))
     R0_hidden = model.convLSTM0.init_hidden(batch_size, im_size)
@@ -33,6 +36,23 @@ def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
     optimizer.step()
 
     return output, loss.data[0] / X_train_batch.size()[0]
+
+def predict(model, X_train):
+    N = X_train.size()[0]
+    
+    predicted_frames = Variable(torch.Tensor(N, num_timesteps, 1, im_size[0], im_size[1]))
+    predicted_frames = predicted_frames.cuda()
+    
+    R1_hidden = model.convLSTM1.init_hidden(N, (im_size[0]/2, im_size[0]/2))
+    R0_hidden = model.convLSTM0.init_hidden(N, im_size)
+    
+    R1_hidden = (R1_hidden[0].cuda(), R1_hidden[1].cuda())
+    R0_hidden = (R0_hidden[0].cuda(), R0_hidden[1].cuda())
+    
+    for i in range(X_train_batch.size()[1]):
+        R1_hidden, R0_hidden, predicted_frames[:,i] = model(X_train[:,i], R1_hidden, R0_hidden)
+        
+    return predicted_frames
 
 def timeSince(since):
     now = time.time()
@@ -87,3 +107,29 @@ if __name__=="__main__":
             
             if b % print_every == 0:
                 print('%s (%d %d%%) %.4f' % (timeSince(start), b, b / num_batches * 100, loss))
+
+    i = 7
+    predicted_frames = predict(model, X_train[:20])
+    nt = 9
+    gs = gridspec.GridSpec(3, nt)
+    gs.update(wspace=0., hspace=0.)
+    for t in range(nt):
+        plt.subplot(gs[t])
+        plt.imshow(X_train[i,t,0,:,:].data.cpu().numpy(), interpolation='none')
+        plt.gray()
+        plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
+        if t==0: plt.ylabel('Actual', fontsize=10)
+
+        plt.subplot(gs[t + nt])
+        plt.imshow(predicted_frames[i,t,0,:,:].data.cpu().numpy(), interpolation='none')
+        plt.gray()
+        plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
+        if t==0: plt.ylabel('Predicted', fontsize=10)
+            
+        plt.subplot(gs[t + 2*nt])
+        plt.imshow(X_train[i,t,0, :,:].data.cpu().numpy()-predicted_frames[i,t,0,:,:].data.cpu().numpy(), interpolation='none')
+        plt.gray()
+        plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
+        if t==0: plt.ylabel('Predicted', fontsize=10)
+            
+    plt.show()
