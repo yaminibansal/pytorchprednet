@@ -34,7 +34,7 @@ class PredNet(nn.Module):
         '''
         Input Args:
         enc_filt_size: list containing the number of convolution filters (or channels) for each layer in the encoder stack. Element zero corresponds to the number of input channels (eg: 3 for RGB)
-        enc_ker_size: list containing the kernel size for the convolutions for each layer in the encoder stack. Element zero is not used. It is assumed that all kernel sizes are odd (for the calculation of the padding)
+        enc_ker_size: list containing the kernel size for the convolutions for each layer in the encoder stack. It is assumed that the kernel sizes are integers. Element zero is not used. It is assumed that all kernel sizes are odd (for the calculation of the padding)
         pool_enc_size: list containing the pooling layer sizes for each layer in the encoder stack. Element zero is not used.
         hid_filt_size: list containing the number of convoution filters (or channels) for each ConvLSTM layer. 
         hid_ker_size: List containing the kernel size for the convolutions for each layer in the convLSTM. The kernel size for the input convolutions and hidden convolutions are assumed to be equal.
@@ -107,6 +107,7 @@ class PredNet(nn.Module):
 
         # Produce the output
         output = self.__getattr__('convDec'+str(0))(R[0][0])
+        
 
         return R, output
 
@@ -139,5 +140,57 @@ class PredNet(nn.Module):
                 R[layer] = self.__getattr__('convLSTM'+str(layer))(Rin[layer], R[layer])
 
         return R
+
+
+class SingleLSTMEncDec(nn.Module):
+    def __init__(self, enc_filt_size, enc_ker_size, enc_pool_size, hid_size, dec_filt_size, dec_ker_size, dec_upsample_size, lstm_inp_size):
+        super(SingleLSTMEncDec, self).__init__()
+        self.num_enc_layers = len(enc_filt_size)
+        self.num_dec_layers = len(dec_filt_size)
+        self.enc_filt_size = enc_filt_size
+        self.enc_ker_size = enc_ker_size
+        self.enc_pool_size = enc_pool_size
+        self.hid_size = hid_size
+        self.dec_filt_size = dec_filt_size
+        self.dec_upsample_size = dec_upsample_size
+
+        for layer in range(self.num_enc_layers-1):
+            self.__setattr__('convEnc'+str(layer+1), nn.Conv2d(enc_filt_size[layer], enc_filt_size[layer+1], enc_ker_size[layer+1], padding=(enc_ker_size[layer+1]-1)/2 ))
+            self.__setattr__('ReLUEnc'+str(layer+1), nn.ReLU)
+            self.__setattr__('poolEnc'+str(layer+1), nn.MaxPool2d(enc_pool_size[layer+1]))
+
+        lstm = nn.LSTM(lstm_inp_size, hid_size)
+
+        for layer in range(self.num_enc_layers-1):
+            self.__setattr__('convDec'+str(layer+1), nn.Conv2d(dec_filt_size[layer], dec_filt_size[layer+1], enc_ker_size[layer+1], padding=(enc_ker_size[layer+1]-1)/2 ))
+            self.__setattr__('ReLUDec'+str(layer+1), nn.ReLU)
+            self.__setattr__('upsampDec'+str(layer+1), nn.UpsamplingNearest2d(scale_factor=dec_upsample_size[layer+1]))
+
+    def forward(self, input, hidden):
+                             
+        encoder_stack = dict.fromkeys(np.arange(0, self.num_layers, 1))
+        decoder_stack = dict.fromkeys(np.arange(0, self.num_layers, 1))
+
+        for layer in range(self.num_enc_layers):
+            if layer == 0:
+                encoder_stack[layer] = input
+            else:
+                encoder_stack[layer] = self.__getattr__('poolEnc'+str(layer))(self.__getattr__('ReLUEnc'+str(layer))(self.__getattr__('convEnc'+str(layer))(encoder_stack[layer-1])))
+                             
+        encoded_shape = encoder_stack[self.num_enc_layers-1].size()
+        assert dec_filt_size[0]*encoded_shape[2]*encoded_shape[3] == hid_size
+        
+        dense_in = encoder_stack[self.num_enc_layers-1].view(encoded_shape[0], -1)
+        hidden = lstm(lstm_in, hidden)
+        decoder_stack[0] = hidden[0].view(encoded_shape[0], dec_filt_size[0], encoded_shape[2], encoded_shape[3])
+
+        for layer in np.arange(1, self.num_dec_layers, 1):
+            decoder_stack[layer] = self.__getattr__('upsampDec'+str(layer))(self.__getattr__('ReLUDec'+str(layer))(self.__getattr__('convDec'+str(layer))(decoder_stack[layer-1])))
+
+        return hidden, decoder_stack[-1]
+
+    def init_hidden(self, batch_size):
+        return Variable(torch.zeros(batch_size, self.hid_size))
+
 
 
