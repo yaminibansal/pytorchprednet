@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
-from prednet.deterministic.models import ConvLSTMEncDec
+from prednet.deterministic.models import SingleLSTMEncDec
 import time
 import math
 import hickle as hkl
@@ -81,16 +81,17 @@ if __name__=="__main__":
     print_every = 1
     total_loss = 0 # Reset every plot_every iters
 
-    enc_filt_size = (1, 32, 64)
+    enc_filt_size = (1, 64, 128)
     enc_ker_size = (3, 3, 3)
     enc_pool_size = (2, 2, 2)
     hid_size = (im_size[0]/4)*(im_size[1]/4)*enc_filt_size[2]
-    dec_filt_size = (64, 32, 1)
+    dec_filt_size = (128, 64, 32)
     dec_ker_size = (3, 3, 3)
     dec_upsample_size = (2, 2, 2)
     lstm_inp_size = (im_size[0]/4)*(im_size[1]/4)*enc_filt_size[2]
     
-    model = ConvLSTMEncDec(enc_filt_size, enc_ker_size, enc_pool_size, hid_size, dec_filt_size, dec_ker_size, dec_upsample_size, lstm_inp_size)
+    model = SingleLSTMEncDec(enc_filt_size, enc_ker_size, enc_pool_size, hid_size, dec_filt_size, dec_ker_size, dec_upsample_size, lstm_inp_size)
+
     if torch.cuda.is_available():
         model.cuda()
     
