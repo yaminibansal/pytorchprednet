@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.autograd import Function
 from torch.nn.modules.loss import _assert_no_grad
 
