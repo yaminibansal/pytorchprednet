@@ -16,7 +16,7 @@ import matplotlib.gridspec as gridspec
 datapath = '/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/train.hkl'
 
 
-def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
+def train(model, optimizer, criterion, X_train_batch, Y_train_batch, num_samples):
 
     batch_size = X_train_batch.size()[0]
     im_size = (X_train_batch.size()[3], X_train_batch.size()[4])
@@ -28,7 +28,7 @@ def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
     loss = 0
 
     for i in range(X_train_batch.size()[1]):
-        hidden, output = model(X_train_batch[:,i], hidden)
+        hidden, output = model(X_train_batch[:,i], hidden, num_samples)
         for j in range(X_train_batch.size()[0]):
             loss += criterion.forward( output[j].view(output[j].size()[0], -1), Y_train_batch[j,i].view(1, -1) )
 
@@ -48,7 +48,7 @@ def predict(model, X_train, num_samples):
     hidden = (hidden[0].cuda(), hidden[1].cuda())
     
     for i in range(X_train_batch.size()[1]):
-        hidden, predicted_frames[:,:,i] = model(X_train[:,i], hidden)
+        hidden, predicted_frames[:,:,i] = model(X_train[:,i], hidden, num_samples)
         
     return predicted_frames
 
@@ -75,7 +75,7 @@ if __name__=="__main__":
     num_timesteps = X_train.size()[1]
     im_size = (X_train.size()[3], X_train.size()[4])
 
-    num_epochs = 10 #Number of times it goes over the entire training set
+    num_epochs = 1 #Number of times it goes over the entire training set
     index_array = np.arange(num_datapoints)
     batch_size = 5
     num_batches = num_datapoints/batch_size
@@ -95,13 +95,13 @@ if __name__=="__main__":
     num_samples = 500
     num_noise_dims = 20
     
-    model = StochLSTMEncDec(enc_filt_size, enc_ker_size, enc_pool_size, hid_size, dec_filt_size, dec_ker_size, dec_upsample_size, lstm_inp_size, num_samples, num_noise_dims)
+    model = StochLSTMEncDec(enc_filt_size, enc_ker_size, enc_pool_size, hid_size, dec_filt_size, dec_ker_size, dec_upsample_size, lstm_inp_size, num_noise_dims)
 
     if torch.cuda.is_available():
         model.cuda()
     
-    criterion = MMDLossFn(1.0)
-    optimizer = optim.RMSprop(model.parameters(), lr=0.001, alpha=0.9)
+    criterion = MMDLossFn(100.0)
+    optimizer = optim.RMSprop(model.parameters(), lr=0.0001, alpha=0.8)
 
     start = time.time()
 
@@ -112,14 +112,15 @@ if __name__=="__main__":
             X_train_batch = X_train[b*batch_size:(b+1)*batch_size]
             Y_train_batch = Y_train[b*batch_size:(b+1)*batch_size]
 
-            output, loss = train(model, optimizer, criterion, X_train_batch, Y_train_batch)
+            output, loss = train(model, optimizer, criterion, X_train_batch, Y_train_batch, num_samples)
             total_loss += loss
             
             if b % print_every == 0:
                 print('%s (%d %d%%) %.4f' % (timeSince(start), b, b / num_batches * 100, loss))
 
     i = 7
-    predicted_frames = predict(model, X_train[:20], num_samples)
+    num_pred_samples = 5
+    predicted_frames = predict(model, X_train[:20], num_pred_samples)
     nt = 9
     gs = gridspec.GridSpec(3, nt)
     gs.update(wspace=0., hspace=0.)

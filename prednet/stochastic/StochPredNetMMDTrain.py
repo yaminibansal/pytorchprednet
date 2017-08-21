@@ -7,12 +7,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
-from prednet.deterministic.models import PredNet
+from prednet.stochastic.models import StochPredNet
 
 import time
 import math
 import hickle as hkl
-datapath = '/home/ybansal/Documents/Research/Data/FaceGen/clipsval.hkl'
+#datapath = '/home/ybansal/Documents/Research/Data/FaceGen/clipsval.hkl'
+datapath = '/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/train.hkl'
 
 def train(model, optimizer, criterion, X_train_batch, Y_train_batch, noise):
     '''
@@ -32,7 +33,7 @@ def train(model, optimizer, criterion, X_train_batch, Y_train_batch, noise):
 
     for i in range(X_train_batch.size()[1]):
         if i==0:
-            R, output = model(X_train_batch[:,i], R, noise_append=True, noise)
+            R, output = model(X_train_batch[:,i], R, noise_append=True, noise=noise)
         else:
             R, output = model(X_train_batch[:,i], R, noise_append=False)
         loss += criterion(output, Y_train_batch[:,i])
@@ -68,10 +69,13 @@ def timeSince(since):
         
 if __name__=="__main__":
     f = open(datapath, 'r')
-    data = hkl.load(f)
+    #data = hkl.load(f)
+    data_container = hkl.load(f)
     f.close()
-    X_train = data[:,0:9]
-    Y_train = data[:,1:10]
+    #X_train = data[:,0:9]
+    #Y_train = data[:,1:10]
+    X_train = np.swapaxes(np.swapaxes(data_container['videos'][:,0:9], 3, 4), 2, 3)
+    Y_train = np.swapaxes(np.swapaxes(data_container['videos'][:,1:10], 3, 4), 2, 3)
     X_train = Variable(torch.from_numpy(X_train.astype(np.dtype('float32'))), requires_grad=False)
     Y_train = Variable(torch.from_numpy(Y_train.astype(np.dtype('float32'))), requires_grad=False)
     if torch.cuda.is_available():
@@ -91,14 +95,14 @@ if __name__=="__main__":
     print_every = 1
     total_loss = 0 # Reset every plot_every iters
 
-    enc_filt_size = (1, 32, 64, 128, 256)
-    hid_filt_size = (1, 32, 64, 128, 256)
-    enc_ker_size = (3, 3, 3, 3, 3)
-    hid_ker_size = (3, 3, 3, 3, 3)
-    dec_ker_size = (3, 3, 3, 3, 3)
-    pool_enc_size = (2, 2, 2, 2, 2)
+    enc_filt_size = (1, 32, 64)
+    hid_filt_size = (1, 32, 64)
+    enc_ker_size = (3, 3, 3)
+    hid_ker_size = (3, 3, 3)
+    dec_ker_size = (3, 3, 3)
+    pool_enc_size = (2, 2, 2)
     
-    model = PredNet(enc_filt_size, enc_ker_size, hid_filt_size, hid_ker_size, pool_enc_size, dec_ker_size)
+    model = StochPredNet(enc_filt_size, enc_ker_size, hid_filt_size, hid_ker_size, pool_enc_size, dec_ker_size)
     if torch.cuda.is_available():
         model.cuda()
         print('Made model cuda')
@@ -116,7 +120,7 @@ if __name__=="__main__":
             Y_train_batch = Y_train[b*batch_size:(b+1)*batch_size]
             noise = torch.randn(batch_size, num_dim_noise)
 
-            output, loss = train(model, optimizer, criterion, X_train_batch, Y_train_batch)
+            output, loss = train(model, optimizer, criterion, X_train_batch, Y_train_batch, noise)
             total_loss += loss
             
             if b % print_every == 0:

@@ -5,7 +5,7 @@ from torch.autograd import Variable
 import numpy as np                
 
 class StochLSTMEncDec(nn.Module):
-    def __init__(self, enc_filt_size, enc_ker_size, enc_pool_size, hid_size, dec_filt_size, dec_ker_size, dec_upsample_size, lstm_inp_size, num_samples, num_noise_dims):
+    def __init__(self, enc_filt_size, enc_ker_size, enc_pool_size, hid_size, dec_filt_size, dec_ker_size, dec_upsample_size, lstm_inp_size, num_noise_dims):
         super(StochLSTMEncDec, self).__init__()
         self.num_enc_layers = len(enc_filt_size)
         self.num_dec_layers = len(dec_filt_size)
@@ -16,7 +16,6 @@ class StochLSTMEncDec(nn.Module):
         self.dec_filt_size = dec_filt_size
         self.dec_upsample_size = dec_upsample_size
         self.num_noise_dims = num_noise_dims
-        self.num_samples = num_samples
 
         for layer in range(self.num_enc_layers-1):
             self.__setattr__('convEnc'+str(layer+1), nn.Conv2d(enc_filt_size[layer], enc_filt_size[layer+1], enc_ker_size[layer+1], padding=(enc_ker_size[layer+1]-1)/2 ))
@@ -35,7 +34,7 @@ class StochLSTMEncDec(nn.Module):
 
         self.outputlayer = nn.Conv2d(self.dec_filt_size[self.num_dec_layers-1], 1, 3, padding=1)
 
-    def forward(self, input, hidden):
+    def forward(self, input, hidden, num_samples):
 
         batch_size = input.size()[0]
 
@@ -57,7 +56,7 @@ class StochLSTMEncDec(nn.Module):
         decoder_stack[0] = hidden[0].view(encoded_shape[0], self.dec_filt_size[0], encoded_shape[2], encoded_shape[3])
 
         #Repeat num_samples times
-        decoder_stack[0] = decoder_stack[0].repeat(self.num_samples, 1, 1, 1)
+        decoder_stack[0] = decoder_stack[0].repeat(num_samples, 1, 1, 1)
         #print('1:', decoder_stack[0].size())
         #print('2:', decoder_stack[0][0])
         #print('3:', decoder_stack[0][10])
@@ -65,8 +64,8 @@ class StochLSTMEncDec(nn.Module):
         #print('chk:', decoder_stack[0].view(10, 5, 128, 5, 5)[0, 1])
         
         #Generate noise samples of the appropriate dimensions
-        noise = torch.randn(batch_size*self.num_samples, self.num_noise_dims)
-        noise = Variable( noise.repeat(encoded_shape[2]*encoded_shape[3], 1).view(encoded_shape[2], encoded_shape[3], batch_size*self.num_samples, self.num_noise_dims).permute(2, 3, 0, 1))
+        noise = torch.randn(batch_size*num_samples, self.num_noise_dims)
+        noise = Variable( noise.repeat(encoded_shape[2]*encoded_shape[3], 1).view(encoded_shape[2], encoded_shape[3], batch_size*num_samples, self.num_noise_dims).permute(2, 3, 0, 1))
         #print('4:', noise.size())
         #print('5:', noise[:,:,0,0])
         #print('6:', noise[:,:,0,1])
@@ -82,7 +81,7 @@ class StochLSTMEncDec(nn.Module):
             decoder_stack[layer] = self.__getattr__('upsampDec'+str(layer))(self.__getattr__('ReLUDec'+str(layer))(self.__getattr__('convDec'+str(layer))(decoder_stack[layer-1])))
 
         output = self.outputlayer(decoder_stack[self.num_dec_layers-1])
-        output = output.view(batch_size, self.num_samples, output.size()[1], output.size()[2], output.size()[3])
+        output = output.view(batch_size, num_samples, output.size()[1], output.size()[2], output.size()[3])
 
         #print('9:', output.size())
 
