@@ -31,6 +31,7 @@ def train(model, optimizer, criterion, X_train_batch, Y_train_batch, num_samples
         hidden, output = model(X_train_batch[:,i], hidden, num_samples)
         for j in range(X_train_batch.size()[0]):
             loss += criterion.forward( output[j].view(output[j].size()[0], -1), Y_train_batch[j,i].view(1, -1) )
+            print('Loss = ', loss)
 
     loss.backward()
     optimizer.step()

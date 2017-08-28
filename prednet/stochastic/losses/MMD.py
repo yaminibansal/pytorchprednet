@@ -73,7 +73,8 @@ class MMDLossSqrtFn(Function):
         else:
             MMD += 1.0/(M*(M-1))*(torch.sum(torch.exp(-k_yy/self.sigma**2))-torch.sum(torch.exp(-torch.diag(k_yy)/self.sigma**2)))
         MMD += -2.0/(N*M)*torch.sum(torch.exp(-k_xy/self.sigma**2))
-        return torch.pow(MMD, 0.5)
+        #print('MMD = ', MMD, ' MMD sqrt = ', torch.pow(MMD, 0.5))
+        return torch.pow(torch.abs(MMD), 0.5)
     
 class MMDLossSqrt(nn.Module):
     def __init__(self, sigma):
