@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 datapath = '/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/train.hkl'
+weightpath = '/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/SingleLSTMEncDecWeights.npy'
 
 
 def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
@@ -138,3 +139,11 @@ if __name__=="__main__":
         if t==0: plt.ylabel('Predicted', fontsize=10)
             
     plt.show()
+
+    weights_dict = {}
+    weights_dict['conv1'] = list(model.convDec1.parameters())
+    weights_dict['conv2'] = list(model.convDec2.parameters())
+    weights_dict['conv3'] = list(model.outputlayer.parameters())
+
+    np.save(weightpath, weights_dict)
+    
