@@ -68,9 +68,8 @@ class minDistLossFn(Function):
     '''
     This implementation is not right. I need to implement a backward function for this to be a proper loss. But for now, if we use MMDLossFn.forward, it will use that as a function and compute the backward graph. But MMLossFn by itself will not work.
     '''
-    def __init__(self, sigma):
+    def __init__(self):
         super(minDistLossFn, self).__init__()
-        self.sigma = sigma
         
     def forward(self, input, gen_samples):
         N = input.size(0)
@@ -78,17 +77,25 @@ class minDistLossFn(Function):
         assert N == M
         num_samples_per = gen_samples.size(1)
 
+        target = input.repeat(num_samples_per, 1, 1, 1)
+        target = target.view(num_samples_per, N, input.size()[1], input.size()[2], input.size()[3])
+        target = target.permute(1, 0, 2, 3, 4)
+
+        batch_loss = torch.sum(torch.sum(torch.sum(torch.pow(gen_samples - target, 2), dim=2), dim=2), dim=2)
+        
+        (min_loss_vals, min_loss_ind) = torch.min(batch_loss, dim=1)
+        loss = torch.sum(min_loss_vals)
+        return loss
+
 class minDistLoss(nn.Module):
-    def __init__(self, sigma):
+    def __init__(self):
         '''Instantiate the class with kernel width parameter for the RBF kernel '''
         super(minDistLoss, self).__init__()
-        self.sigma = sigma
     
     def forward(self, inputs, samples):
         '''Return the MMD loss function'''
-        _assert_no_grad(samples)
-        backend_fn = minDistLossFn(self.sigma)
-        return backend_fn.forward(input, samples)
+        backend_fn = minDistLossFn()
+        return backend_fn.forward(inputs, samples)
 
 
 class MMDLossSqrtFn(Function): 
