@@ -15,7 +15,9 @@ class FCDecoder(nn.Module):
         self.dec_layer_size = dec_layer_size
 
         for layer in range(self.num_layers-1):
-            self.__setattr__('linear'+str(layer), nn.Linear(self.dec_layer_size[layer], self.dec_layer_size[layer+1]))
+            self.__setattr__('linear'+str(layer+1), nn.Linear(self.dec_layer_size[layer], self.dec_layer_size[layer+1]))
+
+        self.act = nn.ReLU()
 
     def forward(self, input, output_size):
         dec = dict.fromkeys(np.arange(0, self.num_layers, 1))
@@ -23,8 +25,10 @@ class FCDecoder(nn.Module):
         for layer in range(self.num_layers):
             if layer == 0:
                 dec[layer] = input
+            elif layer == self.num_layers - 1:
+                dec[layer] = self.__getattr__('linear'+str(layer))(dec[layer-1])
             else:
-                dec[layer] = nn.ReLU(self.__getattr__('linear'+str(layer)))
+                dec[layer] = self.act(self.__getattr__('linear'+str(layer))(dec[layer-1]))
                 
         output = dec[self.num_layers-1].view(output_size)
 

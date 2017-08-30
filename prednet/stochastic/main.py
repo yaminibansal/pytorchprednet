@@ -4,9 +4,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
-from prednet.deterministic.train import train
-from prednet.deterministic.evaluation import predict
-from prednet.deterministic.models import FCDecoder
+from prednet.stochastic.train import train
+#from prednet.stochastic.evaluation import predict
+from prednet.stochastic.models import StochFCDecoder
+from prednet.stochastic.losses.MMD import MMDLoss
+from prednet.utils.plotting import plot_samples
 
 import time
 import math
@@ -34,17 +36,19 @@ if __name__ == "__main__":
     index_array = np.arange(num_datapoints)
     batch_size = 10
     num_batches = num_datapoints/batch_size
+    num_samples = 25
+    noise_dim = 20
 
     print_every = 1
     total_loss = 0 # Reset every plot_every iters
 
     dec_layer_size = [128, 256, 1*20*20]
-    model = FCDecoder(dec_layer_size)
+    model = StochFCDecoder(dec_layer_size)
     if torch.cuda.is_available():
         model.cuda()
 
-    criterion = nn.MSELoss()
-    optimizer = optim.RMSprop(model.parameters(), lr=0.001, alpha=0.9)
+    criterion = MMDLoss(1.0)
+    optimizer = optim.RMSprop(model.parameters(), lr=0.01, alpha=0.9)
 
     start = time.time()
 
@@ -52,26 +56,15 @@ if __name__ == "__main__":
         npr.shuffle(index_array)
         
         for b in range(num_batches):
-            X_train_batch = Variable(torch.zeros(batch_size, dec_layer_size[0])).cuda()
+            X_train_batch = Variable(torch.zeros(batch_size, dec_layer_size[0]-noise_dim)).cuda()
             Y_train_batch = Y_train[b*batch_size:(b+1)*batch_size]
 
-            output, loss = train(model, optimizer, criterion, X_train_batch, Y_train_batch)
+            noise = Variable(torch.randn(batch_size, num_samples, noise_dim)).cuda()
+            output, loss = train(model, optimizer, criterion, X_train_batch, noise, Y_train_batch)
             total_loss += loss
             
             if b % print_every == 0:
                 print('%s (%d %d%%) %.4f' % (timeSince(start), b, b / num_batches * 100, loss))
 
-    i = 7
-    num_pred_samples = 20
-    predicted_frames, loss = predict(model, criterion, Variable(torch.zeros(num_pred_samples, dec_layer_size[0])).cuda(), X_train[:num_pred_samples])
-    nt = 9
-    gs = gridspec.GridSpec(int(math.ceil(math.sqrt(num_pred_samples))), int(math.ceil(math.sqrt(num_pred_samples))))
-    gs.update(wspace=0., hspace=0.)
-
-    for n in range(num_pred_samples):
-        plt.subplot(gs[n])
-        plt.imshow(predicted_frames[n,0,:,:].data.cpu().numpy(), interpolation='none')
-        plt.gray()
-        plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
-
+    plt = plot_samples(Y_train_batch[:,0].data.cpu(), output[:,:,0].data.cpu(), 1, 10)
     plt.show()

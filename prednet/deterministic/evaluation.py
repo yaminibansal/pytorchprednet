@@ -1,5 +1,5 @@
 def predict(model, criterion, input, target):
-    output = model(input)
+    output = model(input, target.size())
     err = criterion(output, target)
     return output, err
 

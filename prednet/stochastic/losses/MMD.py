@@ -12,16 +12,31 @@ def rbf_kernel_matrix(x, y):
     return sum_squares-2*product
 
 class MMDLossFn(Function): 
-    '''The backward fucntion has not been implemented yet because all the operations are performed used valid torch functions 
-    which allows backward to be computed across the graph. To make it faster, we could custom implement the backward function'''
+    '''
+    This implementation is not right. I need to implement a backward function for this to be a proper loss. But for now, if we use MMDLossFn.forward, it will use that as a function and compute the backward graph. But MMLossFn by itself will not work.
+    '''
     def __init__(self, sigma):
         super(MMDLossFn, self).__init__()
         self.sigma = sigma
         
     def forward(self, input, gen_samples):
-        '''Calculate the unbiased MMD Loss with \sigma as a free parameter'''
+        '''Calculate the unbiased MMD Loss with \sigma as a free parameter
+        
+        It is assumed that the first dimension is the dimension for differnet iid samples
+        '''
         N = input.size(0)
-        M = gen_samples.size(0)
+        M = gen_samples.size(0)        
+        if len(input.size()) == len(gen_samples.size()):
+            input = input.contiguous().view(N, -1)
+            gen_samples = gen_samples.view(M, -1)
+        elif len(input.size()) + 1 == len(gen_samples.size()):
+            num_samples_per = gen_samples.size(1)
+            input = input.contiguous().view(N, -1)
+            gen_samples = gen_samples.contiguous().view(M*num_samples_per, -1)
+        else:
+            #implement error
+            pass
+            
         k_xx = rbf_kernel_matrix(input, input)
         k_yy = rbf_kernel_matrix(gen_samples, gen_samples)
         k_xy = rbf_kernel_matrix(input, gen_samples)
@@ -35,7 +50,7 @@ class MMDLossFn(Function):
             MMD += 1.0/(M*(M-1))*(torch.sum(torch.exp(-k_yy/self.sigma**2))-torch.sum(torch.exp(-torch.diag(k_yy)/self.sigma**2)))
         MMD += -2.0/(N*M)*torch.sum(torch.exp(-k_xy/self.sigma**2))
         return MMD
-    
+
 class MMDLoss(nn.Module):
     def __init__(self, sigma):
         '''Instantiate the class with kernel width parameter for the RBF kernel '''
@@ -44,10 +59,36 @@ class MMDLoss(nn.Module):
     
     def forward(self, inputs, samples):
         '''Return the MMD loss function'''
-        _assert_no_grad(samples)
         backend_fn = MMDLossFn(self.sigma)
         #backend_fn = getattr(self._backend, type(self).__name__)
-        return backend_fn(input, samples)
+        return backend_fn.forward(inputs, samples)
+
+
+class minDistLossFn(Function): 
+    '''
+    This implementation is not right. I need to implement a backward function for this to be a proper loss. But for now, if we use MMDLossFn.forward, it will use that as a function and compute the backward graph. But MMLossFn by itself will not work.
+    '''
+    def __init__(self, sigma):
+        super(minDistLossFn, self).__init__()
+        self.sigma = sigma
+        
+    def forward(self, input, gen_samples):
+        N = input.size(0)
+        M = gen_samples.size(0) 
+        assert N == M
+        num_samples_per = gen_samples.size(1)
+
+class minDistLoss(nn.Module):
+    def __init__(self, sigma):
+        '''Instantiate the class with kernel width parameter for the RBF kernel '''
+        super(minDistLoss, self).__init__()
+        self.sigma = sigma
+    
+    def forward(self, inputs, samples):
+        '''Return the MMD loss function'''
+        _assert_no_grad(samples)
+        backend_fn = minDistLossFn(self.sigma)
+        return backend_fn.forward(input, samples)
 
 
 class MMDLossSqrtFn(Function): 
