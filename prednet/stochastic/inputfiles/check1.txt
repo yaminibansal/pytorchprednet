@@ -1,0 +1,10 @@
+--dataset=ball
+--dataroot=/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/train.hkl
+--num_epochs=20
+--batch_size=20
+--num_samples=50
+--modelname=MeanFinder
+--num_noise_dim=400
+--rbf=10.0
+--lr=0.001
+--savepath=/home/ybansal/Documents/Research/pytorchprednet/Figures/check1.png

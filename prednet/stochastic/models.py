@@ -1,8 +1,32 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+from torch.nn.parameter import Parameter
 
-import numpy as np                
+import numpy as np
+
+
+class MeanFinder(nn.Module):
+    def __init__(self, noise_dims):
+        '''
+        noise_shape = Total number of noise dimensions
+        '''
+        super(MeanFinder, self).__init__()
+        self.mean = Parameter(torch.randn(noise_dims))
+        # if sigma is not None:
+        #     self.sigma = Parameter(torch.randn(num_dims, num_dims))
+        # else:
+        #     self.sigma = sigma
+        
+    def forward(self, input, noise, target_size):
+        '''
+        noise: batch_size x num_samples x noise_dim
+        '''
+        batch_size = noise.size(0)
+        num_samples = noise.size(1)
+        shifted_noise = noise + self.mean.expand_as(noise)
+        shifted_noise = shifted_noise.view((batch_size, num_samples)+target_size[1:])
+        return shifted_noise
 
 class StochFCDecoder(nn.Module):
     def __init__(self, dec_layer_size):
