@@ -2,14 +2,42 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
+import numpy.random as npr
 
 import numpy as np
+
+class GMM(nn.Module):
+    def __init__(self, noise_dims, num_comp):
+        '''
+        noise_dims = Number of noise dimensions
+        num_comp = Number of noise components
+        '''
+        super(GMM, self).__init__()
+        self.num_comp = num_comp
+        self.noise_dims = noise_dims
+        self.means = Parameter(torch.randn(num_comp, noise_dims))
+
+    def forward(self, input, noise, target_size):
+        '''
+        noise: batch_size x num_samples x noise_dim
+        '''
+        batch_size = noise.size(0)
+        num_samples = noise.size(1)
+        comp_ind = Variable(torch.LongTensor(npr.choice(self.num_comp, size=batch_size*num_samples)))
+        if torch.cuda.is_available():
+            comp_ind = comp_ind.cuda()
+        selected_mean = torch.index_select(self.means, 0, comp_ind)
+        shifted_noise = 0.1*noise + selected_mean.view(batch_size, num_samples, self.noise_dims)
+        shifted_noise = shifted_noise.view((batch_size, num_samples)+target_size[1:])
+        return shifted_noise
+        
+        
 
 
 class MeanFinder(nn.Module):
     def __init__(self, noise_dims):
         '''
-        noise_shape = Total number of noise dimensions
+        noise_dims = Number of noise dimensions
         '''
         super(MeanFinder, self).__init__()
         self.mean = Parameter(torch.randn(noise_dims))

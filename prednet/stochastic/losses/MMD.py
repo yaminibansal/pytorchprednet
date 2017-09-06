@@ -34,8 +34,7 @@ class MMDLossFn(Function):
             input = input.contiguous().view(N, -1)
             gen_samples = gen_samples.contiguous().view(M*num_samples_per, -1)
         else:
-            #implement error
-            pass
+            raise NotImplementedError
             
         k_xx = rbf_kernel_matrix(input, input)
         k_yy = rbf_kernel_matrix(gen_samples, gen_samples)
