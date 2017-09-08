@@ -7,6 +7,6 @@
 --num_noise_dim=400
 --rbf=5.0
 --lr=0.001
---savepath=/home/ybansal/Documents/Research/pytorchprednet/Figures/check1.png
+--savepath=/home/ybansal/Documents/Research/pytorchprednet/Figures/MMD_mean.png
 --num_inp_plts=10
 --num_gen_plts=25

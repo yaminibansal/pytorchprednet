@@ -9,6 +9,7 @@ from torch.autograd import Variable
 from prednet.stochastic.train import train
 #from prednet.stochastic.evaluation import predict
 from prednet.stochastic.models import StochFCDecoder, MeanFinder, GMM
+from prednet.stochastic.discriminators import dcgan_netD
 from prednet.stochastic.losses.MMD import minDistLoss, MMDLoss
 from prednet.utils.plotting import plot_samples, plot_means
 
@@ -32,6 +33,7 @@ parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for o
 parser.add_argument('--savepath', help='Path for saving the plots')
 parser.add_argument('--num_inp_plts', type=int, help='Number of input samples to be plotted')
 parser.add_argument('--num_gen_plts', type=int, help='Number of generated samples to be plotted')
+parser.add_argument('--beta1', type=float, default=0.5, help='Beta 1 for Adam')
 
 opt = parser.parse_args()
 print(opt)
@@ -70,14 +72,16 @@ else:
 
 if opt.modelname == 'StochFCDecoder':
     dec_layer_size = [22, 2000, 1000, 1*20*20]
-    model = StochFCDecoder(dec_layer_size)
+    gen = StochFCDecoder(dec_layer_size)
     input = Variable(torch.zeros(opt.batch_size, dec_layer_size[0]-opt.num_noise_dim)).cuda()
 elif opt.modelname == 'MeanFinder':
-    model = MeanFinder(1*20*20)
+    gen = MeanFinder(1*20*20)
     input = None
 elif opt.modelname == 'GMM':
-    model = GMM(1*20*20, 5)
+    gen = GMM(1*20*20, 10)
     input = None
+
+disc = dcgan_netD()
 
 
 if __name__ == "__main__":
@@ -95,11 +99,20 @@ if __name__ == "__main__":
     print_every = 1
     total_loss = 0 # Reset every plot_every iters
 
+    criterion = nn.BCELoss()
+    label = torch.FloatTensor(opt.batch_size)
+    real_label = 1
+    fake_label = 0
+    
     if torch.cuda.is_available():
-        model.cuda()
+        gen.cuda()
+        disc.cuda()
+        criterion.cuda()
+        label = label.cuda()
 
-    criterion = MMDLoss(opt.rbf)
-    optimizer = optim.Adam(model.parameters(), lr=opt.lr)
+
+    optimizerD = optim.Adam(disc.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+    optimizerG = optim.Adam(gen.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))    
     
 
     start = time.time()
@@ -109,14 +122,39 @@ if __name__ == "__main__":
         
         for b in range(num_batches):
             Y_train_batch = Y_train[b*opt.batch_size:(b+1)*opt.batch_size]
-            noise = Variable(torch.randn(opt.batch_size, opt.num_samples, opt.num_noise_dim)).cuda() #Variable(torch.zeros(opt.batch_size, opt.num_samples, opt.num_noise_dim)).cuda()    
+            noise = Variable(torch.randn(opt.batch_size, opt.num_samples, opt.num_noise_dim)).cuda() #Variable(torch.zeros(opt.batch_size, opt.num_samples, opt.num_noise_dim)).cuda()
 
-            output, loss = train(model, optimizer, criterion, input, noise, Y_train_batch)
-            total_loss += loss
-            
-            if b % print_every == 0:
-                print('%s (%d %d%%) %.4f' % (timeSince(start), b, b / num_batches * 100, loss))
 
-    #plt = plot_means(model.means.data.cpu(), (output.size(3), output.size(4)), savepath=opt.savepath)
-    plt = plot_samples(output[:,:,0].data.cpu(), opt.num_gen_plts, savepath=opt.savepath)
+            #### Update D
+            disc.zero_grad()
+            output = disc(Y_train_batch)
+            label.resize_(opt.batch_size).fill_(real_label)
+            labelv = Variable(label)
+            errD_real = criterion(output, labelv)
+            errD_real.backward()
+            D_x = output.data.mean()
+
+            gen_samples_orig = gen(input, noise, Y_train_batch.size())
+            gen_samples = gen_samples_orig.view(opt.batch_size*opt.num_samples, Y_train_batch.size(1), Y_train_batch.size(2), Y_train_batch.size(3))
+            labelv = Variable(label.fill_(fake_label))
+            output = disc(gen_samples.detach())
+            errD_fake = criterion(output, labelv)
+            errD_fake.backward()
+            D_G_z1 = output.data.mean()
+            errD = errD_real + errD_fake
+            optimizerD.step()
+
+            #### Update G
+            gen.zero_grad()
+            labelv = Variable(label.fill_(real_label))
+            output = disc(gen_samples)
+            errG = criterion(output, labelv)
+            errG.backward()
+            D_G_z2 = output.data.mean()
+            optimizerG.step()
+
+            print('Epoch: %d, Time: %s (%d %d) Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f' %(n, timeSince(start), b, b/num_batches*100, errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
+
+    #plt = plot_means(gen.means.data.cpu(), (Y_train_batch.size(2), Y_train_batch.size(3)), savepath=opt.savepath)
+    plt = plot_samples(gen_samples_orig[:,:,0].data.cpu(), opt.num_gen_plts, savepath=opt.savepath)
     plt.show()
