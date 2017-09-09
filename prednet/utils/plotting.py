@@ -167,10 +167,48 @@ def plot_det_seq(target, output, num_seqs, seq_ind=None):
                    
     return plt
 
-def plot_stoch_seq(target, output, num_seqs, seq_ind=None, samp_seq_ind=None):
+def plot_stoch_seq(target, samples, num_seqs, num_per_seq, seq_ind=None, samp_seq_ind=None, savepath=None):
     '''
     Plots the ground truth sequence and learnt samples
     '''
+    N = target.size(0)
+    M = samples.size(0)
+    T = target.size(1)+1
+    assert N == M
+    num_samples = samples.size(1)
+
+    if seq_ind is None:
+        ind = npr.choice(N, num_seqs)
+    else:
+        ind = seq_ind
+
+    if samp_seq_ind is None:
+        samp_seq_ind = np.zeros((num_seqs, num_per_seq))
+        for i in range(num_seqs):
+            samp_seq_ind[i,:] = np.array(npr.choice(num_samples, num_per_seq))
+
+    gs = gridspec.GridSpec(num_seqs*(num_per_seq+1), T)
+    gs.update(wspace=.2, hspace=0.0)
+
+    for i in range(num_seqs):
+        for t in range(T-1):
+            plt.subplot(gs[i*(1+num_per_seq)*T+t])
+            plt.imshow(target[ind[i], t].numpy(), interpolation='None')
+            plt.gray()
+            plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
+            if t==0: plt.ylabel('Ground Truth', fontsize=10)
+
+            for m in range(num_per_seq):
+                plt.subplot(gs[i*(1+num_per_seq)*T+(m+1)*T+t+1])
+                plt.imshow(samples[ind[i], samp_seq_ind[i,m], t].numpy(), interpolation='None')
+                plt.gray()
+                plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
+                if t==0: plt.ylabel('Sample %d'%(m), fontsize=10)
+
+    if savepath is not None: plt.savefig(savepath)
+
+    return plt
+        
 
 def plot_loss(plt, loss):
     '''

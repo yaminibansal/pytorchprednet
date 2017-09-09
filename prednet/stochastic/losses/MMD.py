@@ -39,6 +39,7 @@ class MMDLossFn(Function):
         k_xx = rbf_kernel_matrix(input, input)
         k_yy = rbf_kernel_matrix(gen_samples, gen_samples)
         k_xy = rbf_kernel_matrix(input, gen_samples)
+        #print((torch.sum(-k_yy/self.sigma**2).data, torch.sum(-k_xy/self.sigma**2).data))
         if N==1:
             MMD = 0
         else:
