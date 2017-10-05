@@ -19,27 +19,29 @@ class MMDLossFn(Function):
         super(MMDLossFn, self).__init__()
         self.sigma = sigma
         
-    def forward(self, input, gen_samples):
+    def forward(self, inputs, gen_samples):
         '''Calculate the unbiased MMD Loss with \sigma as a free parameter
         
         It is assumed that the first dimension is the dimension for differnet iid samples
         '''
-        N = input.size(0)
-        M = gen_samples.size(0)        
-        if len(input.size()) == len(gen_samples.size()):
-            input = input.contiguous().view(N, -1)
+        N = inputs.size(0)
+        M = gen_samples.size(0)                        
+
+        if len(inputs.size()) == len(gen_samples.size()):
+            inputs = inputs.contiguous().view(N, -1)
             gen_samples = gen_samples.view(M, -1)
-        elif len(input.size()) + 1 == len(gen_samples.size()):
+        elif len(inputs.size()) + 1 == len(gen_samples.size()):
             num_samples_per = gen_samples.size(1)
-            input = input.contiguous().view(N, -1)
+            inputs = inputs.contiguous().view(N, -1)
             gen_samples = gen_samples.contiguous().view(M*num_samples_per, -1)
         else:
             raise NotImplementedError
-            
-        k_xx = rbf_kernel_matrix(input, input)
+        
+        M = gen_samples.size(0)                
+        k_xx = rbf_kernel_matrix(inputs, inputs)
         k_yy = rbf_kernel_matrix(gen_samples, gen_samples)
-        k_xy = rbf_kernel_matrix(input, gen_samples)
-        #print((torch.sum(-k_yy/self.sigma**2).data, torch.sum(-k_xy/self.sigma**2).data))
+        k_xy = rbf_kernel_matrix(inputs, gen_samples)
+
         if N==1:
             MMD = 0
         else:
@@ -71,14 +73,14 @@ class minDistLossFn(Function):
     def __init__(self):
         super(minDistLossFn, self).__init__()
         
-    def forward(self, input, gen_samples):
-        N = input.size(0)
+    def forward(self, inputs, gen_samples):
+        N = inputs.size(0)
         M = gen_samples.size(0) 
         assert N == M
         num_samples_per = gen_samples.size(1)
 
-        target = input.repeat(num_samples_per, 1, 1, 1)
-        target = target.view(num_samples_per, N, input.size()[1], input.size()[2], input.size()[3])
+        target = inputs.repeat(num_samples_per, 1, 1, 1)
+        target = target.view(num_samples_per, N, inputs.size()[1], inputs.size()[2], inputs.size()[3])
         target = target.permute(1, 0, 2, 3, 4)
 
         batch_loss = torch.sum(torch.sum(torch.sum(torch.pow(gen_samples - target, 2), dim=2), dim=2), dim=2)
@@ -105,13 +107,13 @@ class MMDLossSqrtFn(Function):
         super(MMDLossSqrtFn, self).__init__()
         self.sigma = sigma
         
-    def forward(self, input, gen_samples):
+    def forward(self, inputs, gen_samples):
         '''Calculate the unbiased MMD Loss with \sigma as a free parameter'''
-        N = input.size(0)
+        N = inputs.size(0)
         M = gen_samples.size(0)
-        k_xx = rbf_kernel_matrix(input, input)
+        k_xx = rbf_kernel_matrix(inputs, inputs)
         k_yy = rbf_kernel_matrix(gen_samples, gen_samples)
-        k_xy = rbf_kernel_matrix(input, gen_samples)
+        k_xy = rbf_kernel_matrix(inputs, gen_samples)
         if N==1:
             MMD = 0
         else:
@@ -135,4 +137,4 @@ class MMDLossSqrt(nn.Module):
         _assert_no_grad(samples)
         backend_fn = MMDLossSqrtFn(self.sigma)
         #backend_fn = getattr(self._backend, type(self).__name__)
-        return backend_fn(input, samples)
+        return backend_fn(inputs, samples)

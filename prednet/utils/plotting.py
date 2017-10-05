@@ -1,4 +1,7 @@
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
+plt.ioff() 
 import matplotlib.gridspec as gridspec
 import numpy as np
 import numpy.random as npr
