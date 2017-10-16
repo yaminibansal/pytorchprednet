@@ -1,13 +1,16 @@
 import numpy as np
 import numpy.random as npr
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
+plt.ioff()
 import matplotlib.gridspec as gridspec
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
-from prednet.deterministic.models import PredNet
+from prednet.deterministic.ts_models import PredNet
 
 from memory_profiler import profile
 import time
@@ -22,14 +25,14 @@ def train(model, optimizer, criterion, X_train_batch, Y_train_batch):
     batch_size = X_train_batch.size()[0]
     im_size = (X_train_batch.size()[3], X_train_batch.size()[4])
 
-    R = model.init_hidden(batch_size, im_size)
+    R, E = model.init_hidden(batch_size, im_size)
 
     optimizer.zero_grad()
 
     loss = 0
 
     for i in range(X_train_batch.size()[1]):
-        R, output = model(X_train_batch[:,i], R)
+        R, E, output = model(X_train_batch[:,i], R, E)
         loss += criterion(output, Y_train_batch[:,i])
 
     loss.backward()
@@ -47,10 +50,10 @@ def predict(model, X_train):
     if torch.cuda.is_available():
         predicted_frames = predicted_frames.cuda()
 
-    R = model.init_hidden(N, im_size)
+    R, E = model.init_hidden(N, im_size)
 
     for i in range(X_train.size()[1]):
-        R, predicted_frames[:,i] = model(X_train[:,i], R)
+        R, E, predicted_frames[:,i] = model(X_train[:,i], R, E)
 
     return predicted_frames
 
@@ -70,7 +73,7 @@ if __name__=="__main__":
     #X_train = data[:,0:9]
     #Y_train = data[:,1:10]
     X_train = np.swapaxes(np.swapaxes(data_container['videos'][:,0:9], 3, 4), 2, 3)
-    Y_train = np.swapaxes(np.swapaxes(data_container['videos'][:,1:10], 3, 4), 2, 3)
+    Y_train = np.swapaxes(np.swapaxes(data_container['videos'][:,0:9], 3, 4), 2, 3)
     X_train = Variable(torch.from_numpy(X_train.astype(np.dtype('float32'))), requires_grad=False)
     Y_train = Variable(torch.from_numpy(Y_train.astype(np.dtype('float32'))), requires_grad=False)
     if torch.cuda.is_available():
@@ -96,7 +99,7 @@ if __name__=="__main__":
     dec_ker_size = (3, 3, 3)
     pool_enc_size = (2, 2, 2)
     
-    model = PredNet(enc_filt_size, enc_ker_size, hid_filt_size, hid_ker_size, pool_enc_size, dec_ker_size)
+    model = PredNet(enc_filt_size, enc_ker_size, pool_enc_size, hid_filt_size, hid_ker_size, dec_ker_size)
     if torch.cuda.is_available():
         model.cuda()
         print('Made model cuda')
@@ -120,7 +123,7 @@ if __name__=="__main__":
                 print('%s (%d %d%%) %.4f' % (timeSince(start), b, b / num_batches * 100, loss))
 
 
-    i = 7
+    i = 3
     predicted_frames = predict(model, X_train[:20])
     nt = 9
     gs = gridspec.GridSpec(3, nt)
@@ -143,6 +146,8 @@ if __name__=="__main__":
         plt.gray()
         plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
         if t==0: plt.ylabel('Predicted', fontsize=10)
+
+    plt.savefig('/home/ybansal/Documents/Research/pytorchprednet/test.png')
             
     plt.show()
 
