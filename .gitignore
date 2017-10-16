@@ -1,0 +1,9 @@
+build/*
+dist/*
+*.pyc
+*~
+*.egg*
+Notebooks/*
+Data/confused_ball/Results/*
+Data/kitti_data/*.hkl
+Data/kitti_data/*.zip
