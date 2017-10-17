@@ -137,35 +137,36 @@ def plot_cond_samples(target, samples, num_inps, num_per_inps, inp_ind=None, sam
                    
 
 
-def plot_det_seq(target, output, num_seqs, seq_ind=None):
+def plot_det_seq(target, output, num_seqs, seq_ind=None, savepath=None):
     '''
     Plots the ground truth sequence and the learnt sequence
     '''
     N = target.size(0)
     M = output.size(0)
     T = target.size(1)
+    print(target.size(), output.size())
     assert target.size() == output.size()
 
-    if inp_ind is None:
-        ind = npr.choice(N, num_inps)
+    if seq_ind is None:
+        ind = npr.choice(N, num_seqs)
     else:
-        ind = inp_ind
-    gs = gridspec.GridSpec(num_inps, T)
+        ind = seq_ind
+    gs = gridspec.GridSpec(num_seqs*2, T)
     gs.update(wspace=.2, hspace=0.0)
     
-    for i in range(num_inps):
+    for i in range(num_seqs):
         for t in range(T):
-            plt.subplot(gs[i*t+t])
+            plt.subplot(gs[2*i*T+t])
             plt.imshow(target[ind[i], t].numpy(), interpolation='none')
             plt.gray()
             plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
-            plt.ylabel('Ground Truth', fontsize=10)
+            if t==0: plt.ylabel('Ground Truth', fontsize=10)
 
-            plt.subplot(gs[i+2*t])
+            plt.subplot(gs[2*i*T+T+t])
             plt.imshow(output[ind[i], t].numpy(), interpolation='none')
             plt.gray()
             plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
-            plt.ylabel('Predicted', fontsize=10)
+            if t==0: plt.ylabel('Predicted', fontsize=10)
     if savepath is not None: plt.savefig(savepath)
                    
     return plt
