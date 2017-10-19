@@ -10,6 +10,8 @@ kitti
 /home/ybansal/Documents/Research/pytorchprednet/Data/kitti_data/sources_val.hkl
 --num_epochs
 2
+--samples_per_epoch
+100
 --batch_size
 5
 --num_t

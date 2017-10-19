@@ -34,6 +34,7 @@ parser.add_argument('--train_src_root', required=True, help='path to training da
 parser.add_argument('--val_root', required=True, help='path to validation data')
 parser.add_argument('--val_src_root', required=True, help='path to training data')
 parser.add_argument('--num_epochs', type=int, default=10, help='Number of training epochs')
+parser.add_argument('--samples_per_epoch', type=int, default=100, help='Number of samples trained on per epoch')
 parser.add_argument('--batch_size', type=int, default=10, help='Batch Size')
 parser.add_argument('--num_t', type=int, required=True, help='number of timesteps')
 parser.add_argument('--modelname', required=True, help='PredNet')
@@ -56,8 +57,8 @@ print(opt)
 num_timesteps = opt.num_t
 
 if opt.dataset == 'kitti':
-    train_dataset = kittidata(opt.train_root, opt.train_src_root, num_timesteps)
-    val_dataset = kittidata(opt.val_root, opt.val_src_root, num_timesteps)
+    train_dataset = kittidata(opt.train_root, opt.train_src_root, num_timesteps, opt.samples_per_epoch)
+    val_dataset = kittidata(opt.val_root, opt.val_src_root, num_timesteps, opt.samples_per_epoch)
     val_dataloader = DataLoader(val_dataset, 5)
 else:
     raise NotImplementedError
