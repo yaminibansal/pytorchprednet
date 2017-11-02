@@ -21,7 +21,10 @@ def predict(model, criterion, input, noise, target):
 
     for t in range(num_timesteps):
         hidden, output[:,:,t] = model(input[:,t], hidden, noise[:,:,t], target[:,t].size())
-        loss+= criterion.forward(target[:,t], output[:,:,t])
+        if criterion is not None:
+            loss+= criterion.forward(target[:,t], output[:,:,t])
+        else:
+            loss = Variable(torch.zeros(1))
         hidden_all[t] = hidden[0]
 
     #Permute axis to make 0 batch_size and 1 num_timesteps
