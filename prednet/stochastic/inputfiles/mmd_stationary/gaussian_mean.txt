@@ -1,0 +1,12 @@
+--dataset=gaussian
+--dataroot=/home/ybansal/Documents/Research/pytorchprednet/Data/highD_gaussian/1070.hkl
+--num_epochs=10
+--batch_size=200
+--num_samples=1
+--modelname=MeanFinder
+--num_noise_dim=400
+--rbf=5.0
+--lr=0.001
+--savepath=/home/ybansal/Documents/Research/pytorchprednet/Figures/MMD_gaussian.png
+--num_inp_plts=10
+--num_gen_plts=20

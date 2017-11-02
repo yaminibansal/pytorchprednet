@@ -1,0 +1,12 @@
+--dataset=ball2pos
+--dataroot=/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/ballposition1.hkl
+--num_epochs=500
+--batch_size=200
+--num_samples=1
+--modelname=StochFCDecoder
+--num_noise_dim=20
+--rbf=5.0
+--lr=0.001
+--savepath=/home/ybansal/Documents/Research/pytorchprednet/Figures/MMD_NNGen.png
+--num_inp_plts=10
+--num_gen_plts=25

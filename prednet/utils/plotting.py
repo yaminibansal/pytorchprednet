@@ -1,19 +1,27 @@
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
-plt.ioff() 
-import matplotlib.gridspec as gridspec
 import numpy as np
 import numpy.random as npr
 import math
 
-def plot_output(target, output, num_inps, inp_ind=None, savepath=None):
+def plot_output(target, output, num_inps, showplot=True, inp_ind=None, savepath=None):
     '''
     Plots the ground truth and the learnt output
 
     target: 3 dimensional input with diff images accros dim 0
     inputs are torch tensors
     '''
+    if not showplot:
+        import matplotlib as mpl
+        mpl.use('Agg')
+        import matplotlib.pyplot as plt
+        plt.ioff() 
+        import matplotlib.gridspec as gridspec
+    else:
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        plt.ion()
+    plt.clf()
+
+    
     N = target.size(0)
     M = output.size(0)
     assert N == M
@@ -42,10 +50,22 @@ def plot_output(target, output, num_inps, inp_ind=None, savepath=None):
     return plt
 
 
-def plot_samples(samples, num_plts, samp_ind=None, savepath=None):
+def plot_samples(samples, num_plts, showplot=True, samp_ind=None, savepath=None):
     '''
     Plots the samples in a suitable grid
     '''
+    if not showplot:
+        import matplotlib as mpl
+        mpl.use('Agg')
+        import matplotlib.pyplot as plt
+        plt.ioff() 
+        import matplotlib.gridspec as gridspec
+    else:
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        plt.ion()
+    plt.clf()
+    
     if len(samples.size()) == 4:
         M = samples.size(0)
         num_samples = samples.size(1)
@@ -72,7 +92,19 @@ def plot_samples(samples, num_plts, samp_ind=None, savepath=None):
 
     return plt
 
-def plot_means(means, im_size, savepath=None):
+def plot_means(means, im_size, showplot=True, savepath=None):
+    if not showplot:
+        import matplotlib as mpl
+        mpl.use('Agg')
+        import matplotlib.pyplot as plt
+        plt.ioff() 
+        import matplotlib.gridspec as gridspec
+    else:
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        plt.ion()
+    plt.clf()
+        
     num_comps = means.size(0)
     means = means.view(num_comps, im_size[0], im_size[1])
 
@@ -92,10 +124,22 @@ def plot_means(means, im_size, savepath=None):
                    
     
 
-def plot_cond_samples(target, samples, num_inps, num_per_inps, inp_ind=None, samp_ind=None, savepath=None):
+def plot_cond_samples(target, samples, num_inps, num_per_inps, showplot=True, inp_ind=None, samp_ind=None, savepath=None):
     '''
     Plots the ground truth and learnt samples conditioned on that ground truth in some way
     '''
+    if not showplot:
+        import matplotlib as mpl
+        mpl.use('Agg')
+        import matplotlib.pyplot as plt
+        plt.ioff() 
+        import matplotlib.gridspec as gridspec
+    else:
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        plt.ion()
+    plt.clf()
+        
     assert len(target.size()) + 1 == len(samples.size())
     N = target.size(0)
     M = samples.size(0)
@@ -137,10 +181,22 @@ def plot_cond_samples(target, samples, num_inps, num_per_inps, inp_ind=None, sam
                    
 
 
-def plot_det_seq(target, output, num_seqs, seq_ind=None, savepath=None):
+def plot_det_seq(target, output, num_seqs, showplot=True, seq_ind=None, savepath=None):
     '''
     Plots the ground truth sequence and the learnt sequence
     '''
+    if not showplot:
+        import matplotlib as mpl
+        mpl.use('Agg')
+        import matplotlib.pyplot as plt
+        plt.ioff() 
+        import matplotlib.gridspec as gridspec
+    else:
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        plt.ion()
+    plt.clf()
+        
     N = target.size(0)
     M = output.size(0)
     T = target.size(1)
@@ -171,10 +227,22 @@ def plot_det_seq(target, output, num_seqs, seq_ind=None, savepath=None):
                    
     return plt
 
-def plot_stoch_seq(target, samples, num_seqs, num_per_seq, seq_ind=None, samp_seq_ind=None, savepath=None):
+def plot_stoch_seq(target, samples, num_seqs, num_per_seq, showplot=True, seq_ind=None, samp_seq_ind=None, savepath=None):
     '''
     Plots the ground truth sequence and learnt samples
     '''
+    if not showplot:
+        import matplotlib as mpl
+        mpl.use('Agg')
+        import matplotlib.pyplot as plt
+        plt.ioff() 
+        import matplotlib.gridspec as gridspec
+    else:
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        plt.ion()
+    plt.clf()
+        
     N = target.size(0)
     M = samples.size(0)
     T = target.size(1)+1
@@ -212,7 +280,26 @@ def plot_stoch_seq(target, samples, num_seqs, num_per_seq, seq_ind=None, samp_se
     if savepath is not None: plt.savefig(savepath)
 
     return plt
+
+def plot_2dviz(data, basis, showplot=True, savepath=None):
+    if not showplot:
+        import matplotlib as mpl
+        mpl.use('Agg')
+        import matplotlib.pyplot as plt
+        plt.ioff() 
+        import matplotlib.gridspec as gridspec
+    else:
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
+        plt.ion()
+    plt.clf()        
         
+    data_trans = np.dot(data.numpy(), basis)
+    plt.plot(data_trans[:,0], data_trans[:,1], 'bo')
+
+    if savepath is not None: plt.savefig(savepath)
+
+    return plt
 
 def plot_loss(plt, loss):
     '''

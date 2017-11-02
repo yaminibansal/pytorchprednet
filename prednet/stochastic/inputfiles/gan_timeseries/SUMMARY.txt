@@ -1,0 +1,23 @@
+Inputfile: gan_disc_wins.txt
+
+The discriminator starts off being really good. It keeps getting better and better. The generated images at this point had collapsed into a single mode, producing images with the ball in a single position. The position was different at different times.
+
+Note: The disriminator gets more training than the generator.
+
+Inputfile: gan_no_depend.txt
+
+The discriminator is ~ 0.7 for real and ~0.3 for fake. There is no single mode collapse, but it does not depend on the previous inputs in any case. Another interesting aspect is that D_Gz_1 is 0.3 and D_Gz_2 is 0.1 which indicates that the discriminator updates seem to be oscillating. Changing the number of samples from 10 to 1 does not produce any significant difference.
+
+Inputfile: gan_disc_flip.txt
+
+The discriminator randomly flips all labels from fake to real when we have a high learning rate
+
+Inputfile: gan_gen_notrain.txt
+
+The generator doesn't train at all even though G loss is very high. Similar to gan_disc_wins
+
+Discriminator training notes:
+1. Learning rate should be less than 0.001 
+
+Generator training notes:
+1. When the discriminator was winning, changing learning rate did not help

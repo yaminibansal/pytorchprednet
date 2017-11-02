@@ -1,0 +1,12 @@
+--dataset=ball2pos
+--dataroot=/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/ballposition1.hkl
+--num_epochs=5
+--batch_size=200
+--num_samples=10
+--modelname=GMM
+--num_noise_dim=400
+--rbf=5.0
+--lr=0.0001
+--savepath=/home/ybansal/Documents/Research/pytorchprednet/Figures/MMD_mean.png
+--num_inp_plts=10
+--num_gen_plts=25
