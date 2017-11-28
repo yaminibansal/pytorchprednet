@@ -6,7 +6,7 @@
 --batch_size=200
 --num_samples=5
 --modelname=StochFCEncDec
---hid_size=2
+--hid_size=20
 --num_noise_dim=20
 --discname=cndtn_dcgan_netD_channel_img
 --num_disc_steps=1
