@@ -20,7 +20,6 @@
 --showplot
 --saveplot
 --savedata
---savepath=/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/Results/gan_stationary/test
+--savepath=/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/Results/gan_stationary/disc_fc
 --num_inp_plts=10
 --num_gen_plts=25
-

@@ -24,6 +24,104 @@ class dcgan_netD(nn.Module):
         output = self.main(input)
 
         return output.view(-1, 1).squeeze(1)
+    
+class Flatten(nn.Module):
+    def forward(self, input):
+        return input.view(input.size(0), -1)
+    
+class dcgan_netD_fc(nn.Module):
+    def __init__(self):
+        super(dcgan_netD_fc, self).__init__()
+
+        self.main = nn.Sequential(
+            # input is 1 x 20 x 20
+            nn.Conv2d(1, 32, 4, 2, 0, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size 32 x 8 x 8
+            nn.Conv2d(32, 64, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.1, inplace=True),
+            # state size 64 x 4 x 4
+            nn.Conv2d(64, 20, 4, 1, 0, bias=False),
+            Flatten(),
+            nn.Linear(20, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, input):
+        output = self.main(input)
+
+        return output.view(-1, 1).squeeze(1)
+
+class cndtn_dcgan_netD_fc(nn.Module):
+    def __init__(self, cndtnl_size):
+        super(cndtn_dcgan_netD_fc, self).__init__()
+
+        self.convblock = nn.Sequential(
+            # input is 1 x 20 x 20
+            nn.Conv2d(1, 32, 4, 2, 0, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size 32 x 8 x 8
+            nn.Conv2d(32, 64, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.1, inplace=True),
+            # state size 64 x 4 x 4
+            nn.Conv2d(64, 20, 4, 1, 0, bias=False),
+            Flatten()
+        )
+
+        self.fcblock = nn.Sequential(
+            nn.Linear(20+cndtnl_size, 10),
+            nn.LeakyReLU(0.1, inplace=True),
+            nn.Linear(10, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, input, cndtnl, num_samples):
+        '''
+        input: Image we are trying to disc
+        cndtnl: label or additional input we are trying to condition on
+        '''
+        cndtnl_expanded = cndtnl.repeat(1, num_samples).view(input.size(0), -1)
+        img_out = self.convblock(input)
+        output = self.fcblock(torch.cat((img_out, cndtnl_expanded), dim=1))
+
+        return output.view(-1, 1).squeeze(1)
+
+class cndtn_dcgan_netD_channel(nn.Module):
+    def __init__(self, cndtnl_size, cndtn_label=True):
+        '''
+        cndtn_label: Bool, tells us if we are conditioning on a label. If false, this is conditioned on a previous image
+        cndtnl_size: If image - number of channels, if label - number of categories
+        '''
+        super(cndtn_dcgan_netD_channel, self).__init__()
+        self.cndtn_label = cndtn_label
+
+        self.main = nn.Sequential(
+            # input is 1 x 20 x 20
+            nn.Conv2d(1+cndtnl_size, 32, 4, 2, 0, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size 32 x 8 x 8
+            nn.Conv2d(32, 64, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.1, inplace=True),
+            # state size 64 x 4 x 4
+            nn.Conv2d(64, 1, 4, 1, 0, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, input, cndtnl, num_samples):
+        '''
+        input: Image we are trying to disc
+        cndtnl: label or additional input we are trying to condition on
+        
+        '''
+        if self.cndtn_label:
+            cndtnl_expanded = cndtnl.repeat(1, num_samples*20*20).view(input.size(0), 20, 20, cndtnl.size(1)).permute(0,3,1,2)
+        else:
+            cndtnl_expanded = cndtnl.view(cndtnl.size(0), -1).repeat(1, num_samples).view(input.size(0), cndtnl.size(1), cndtnl.size(2), cndtnl.size(3))
+        output = self.main(torch.cat((input, cndtnl_expanded), dim=1))
+        return output.view(-1, 1).squeeze(1)
 
 class st_FC(nn.Module):
     '''

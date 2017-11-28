@@ -122,7 +122,7 @@ class PredNet(nn.Module):
             E[layer] = torch.cat((pos_err, neg_err), dim=1)
 
         # Produce the output
-        output = self.__getattr__('convDec'+str(0))(R[0][0])
+        output = torch.clamp(Ahat[0], max=self.pixel_max)
 
         return R, E, output
 

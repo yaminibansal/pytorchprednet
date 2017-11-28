@@ -2,7 +2,7 @@
 --dataset=ball
 --train_root=/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/train_clipped2000.hkl
 --val_root=/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/val_clipped500.hkl
---num_epochs=500
+--num_epochs=200
 --batch_size=200
 --num_samples=5
 --modelname=StochFCDecoder
@@ -11,7 +11,7 @@
 --discname=dcgan_netD
 --num_disc_steps=1
 --num_gen_steps=1
---dlr=0.0005
+--dlr=0.001
 --dbeta1=0.5
 --glr=0.001
 --gbeta1=0.5
@@ -20,6 +20,6 @@
 --showplot
 --saveplot
 --savedata
---savepath=/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/Results/gan_stationary/disc_dcgan
+--savepath=/home/ybansal/Documents/Research/pytorchprednet/Data/confused_ball/Results/gan_stationary/test
 --num_inp_plts=10
 --num_gen_plts=25

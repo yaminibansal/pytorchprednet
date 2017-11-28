@@ -90,6 +90,13 @@ if opt.dataset == 'ball':
     if torch.cuda.is_available():
         X_train = X_train.cuda()
 
+    try:
+        pixel_max = data_container['max']
+        pixel_min = data_container['min']
+    except:
+        pixel_max = None
+        pixel_min = None        
+
     f = open(opt.val_root, 'r')
     data_container = hkl.load(f)
     f.close()
@@ -128,7 +135,7 @@ else:
 
 if opt.modelname == 'StochFCDecoder':
     dec_layer_size = [opt.hid_size+opt.num_noise_dim, 2000, 1000, 1*20*20]
-    gen = StochFCDecoder(dec_layer_size)
+    gen = StochFCDecoder(dec_layer_size, pixel_min, pixel_max)
     if opt.hid_size>0:
         input = Variable(torch.zeros(opt.batch_size, opt.hid_size)).cuda()
     else:

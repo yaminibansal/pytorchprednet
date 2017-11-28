@@ -6,9 +6,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
-from prednet.stochastic.models.models import StochFCDecoder, MeanFinder, GMM
+from prednet.stochastic.models.models import StochFCDecoder, MeanFinder, GMM, StochFCEncDec, StochFCConvEncDec
 from prednet.stochastic.models.discriminators import dcgan_netD, dcgan_netD_fc, st_FC, st_FC_LR, cndtn_dcgan_netD_fc, cndtn_dcgan_netD_channel
-from prednet.utils.plotting import plot_samples, plot_means, plot_2dviz
+from prednet.utils.plotting import plot_samples, plot_means, plot_2dviz, plot_cond_samples
 from prednet.utils.logger import Logger
 
 import time
@@ -95,10 +95,15 @@ if opt.dataset == 'ball':
     f = open(opt.train_root, 'r')
     tr_data_container = hkl.load(f)
     f.close()
-    X_train = np.swapaxes(np.swapaxes(tr_data_container['videos'][:,0], 2, 3), 1, 2)
+    #X_train = np.swapaxes(np.swapaxes(tr_data_container['videos'][np.where(tr_data_container['trajectories'][:,0,0].astype(int)==2)[0],0], 2, 3), 1, 2)
+    X_train = np.swapaxes(np.swapaxes(tr_data_container['videos'][:,7], 2, 3), 1, 2)
     X_train = Variable(torch.from_numpy(X_train.astype(np.dtype('float32'))), requires_grad=False)
+    #Y_train = np.swapaxes(np.swapaxes(tr_data_container['videos'][np.where(tr_data_container['trajectories'][:,0,0].astype(int)==2)[0],1], 2, 3), 1, 2)
+    Y_train = np.swapaxes(np.swapaxes(tr_data_container['videos'][:,8], 2, 3), 1, 2)
+    Y_train = Variable(torch.from_numpy(Y_train.astype(np.dtype('float32'))), requires_grad=False)
     if torch.cuda.is_available():
         X_train = X_train.cuda()
+        Y_train = Y_train.cuda()
 
     try:
         pixel_max = tr_data_container['max']
@@ -111,10 +116,15 @@ if opt.dataset == 'ball':
     f = open(opt.val_root, 'r')
     data_container = hkl.load(f)
     f.close()
-    X_val = np.swapaxes(np.swapaxes(data_container['videos'][:,0], 2, 3), 1, 2)
+    #X_val = np.swapaxes(np.swapaxes(data_container['videos'][np.where(data_container['trajectories'][:,0,0].astype(int)==2)[0],0], 2, 3), 1, 2)
+    X_val = np.swapaxes(np.swapaxes(data_container['videos'][:,7], 2, 3), 1, 2)
     X_val = Variable(torch.from_numpy(X_val.astype(np.dtype('float32'))), requires_grad=False)
+    #Y_val = np.swapaxes(np.swapaxes(data_container['videos'][np.where(data_container['trajectories'][:,0,0].astype(int)==2)[0],1], 2, 3), 1, 2)
+    Y_val = np.swapaxes(np.swapaxes(data_container['videos'][:,8], 2, 3), 1, 2)
+    Y_val = Variable(torch.from_numpy(Y_val.astype(np.dtype('float32'))), requires_grad=False)
     if torch.cuda.is_available():
         X_val = X_val.cuda()
+        Y_val = Y_val.cuda()
         
 # elif opt.dataset == 'ball2pos':
 #     # Validation not implemented
@@ -135,45 +145,46 @@ else:
 num_datapoints = X_train.size()[0]
 num_valpoints = X_val.size()[0]
 
-if opt.modelname == 'StochFCDecoder':
+if opt.modelname == 'StochFCDecoderCndtn':
     dec_layer_size = [opt.hid_size+opt.num_noise_dim, 2000, 1000, 1*20*20]
     gen = StochFCDecoder(dec_layer_size, pixel_min, pixel_max)
-    if opt.hid_size>0:
-        input = Variable(torch.zeros(opt.batch_size, opt.hid_size)).cuda()
-    else:
-        input = None
-elif opt.modelname == 'StochFCDecoderCndtn':
+    gen_input_all = np.zeros((num_datapoints, opt.hid_size))
+    gen_input_all[np.where(tr_data_container['trajectories'][:,0,0].astype(int)==0)[0], 0] = 1
+    gen_input_all[np.where(tr_data_container['trajectories'][:,0,0].astype(int)==1)[0], 1] = 1
+    gen_input_all[np.where(tr_data_container['trajectories'][:,0,0].astype(int)==2)[0], 2] = 1
+    gen_input_all[np.where(tr_data_container['trajectories'][:,0,0].astype(int)==3)[0], 3] = 1
+    gen_input_all[np.where(tr_data_container['trajectories'][:,0,0].astype(int)==4)[0], 4] = 1
+    gen_input_all = Variable(torch.Tensor(gen_input_all)).cuda()
+
+    gen_input_val = np.zeros((num_valpoints, opt.hid_size))
+    gen_input_val[np.where(data_container['trajectories'][:,0,0].astype(int)==0)[0], 0] = 1
+    gen_input_val[np.where(data_container['trajectories'][:,0,0].astype(int)==1)[0], 1] = 1
+    gen_input_val[np.where(data_container['trajectories'][:,0,0].astype(int)==2)[0], 2] = 1
+    gen_input_val[np.where(data_container['trajectories'][:,0,0].astype(int)==3)[0], 3] = 1
+    gen_input_val[np.where(data_container['trajectories'][:,0,0].astype(int)==4)[0], 4] = 1
+    gen_input_val = Variable(torch.Tensor(gen_input_val)).cuda()
+elif opt.modelname == 'StochFCEncDec':
+    enc_layer_size = [400, 300, 200, opt.hid_size]
     dec_layer_size = [opt.hid_size+opt.num_noise_dim, 2000, 1000, 1*20*20]
-    gen = StochFCDecoder(dec_layer_size, pixel_min, pixel_max)
-    input_all = np.zeros((num_datapoints, opt.hid_size))
-    input_all[np.where(tr_data_container['trajectories'][:,0,0].astype(int)==0)[0], 0] = 1
-    input_all[np.where(tr_data_container['trajectories'][:,0,0].astype(int)==1)[0], 1] = 1
-    input_all[np.where(tr_data_container['trajectories'][:,0,0].astype(int)==2)[0], 2] = 1
-    input_all[np.where(tr_data_container['trajectories'][:,0,0].astype(int)==3)[0], 3] = 1
-    input_all[np.where(tr_data_container['trajectories'][:,0,0].astype(int)==4)[0], 4] = 1
-    input_all = Variable(torch.Tensor(input_all)).cuda()
-elif opt.modelname == 'MeanFinder':
-    gen = MeanFinder(1*20*20)
-    input = None
-elif opt.modelname == 'GMM':
-    gen = GMM(1*20*20, 5)
-    input = None
+    gen = StochFCEncDec(enc_layer_size, dec_layer_size, pixel_min, pixel_max)
+    gen_input_all = X_train
+    gen_input_val = X_val
+    #gen_input_all = Variable(torch.zeros((num_datapoints, 1, 20, 20))).cuda()
+    #gen_input_val = Variable(torch.zeros((num_valpoints, 1, 20, 20))).cuda()
+                             
+elif opt.modelname == 'StochFCConvEncDec':
+    dec_layer_size = [opt.hid_size+opt.num_noise_dim, 2000, 1000, 1*20*20]
+    gen = StochFCConvEncDec(opt.hid_size, dec_layer_size, pixel_min, pixel_max)
+    gen_input_all = X_train
+    gen_input_val = X_val
+else:
+    raise NotImplementedError
 print('Generator: ', gen)
 
-if opt.discname == 'dcgan_netD':
+if opt.discname == 'cndtn_dcgan_netD_channel_img':
+    disc = cndtn_dcgan_netD_channel(1, False)
+elif opt.discname == 'dcgan_netD':
     disc = dcgan_netD()
-elif opt.discname == 'dcgan_netD_fc':
-    disc = dcgan_netD_fc()
-elif opt.discname == 'st_FC':
-    disc = st_FC()
-elif opt.discname == 'st_FC_LR':
-    disc = st_FC_LR()
-elif opt.discname == 'cndtn_dcgan_netD_fc':
-    disc = cndtn_dcgan_netD_fc(opt.hid_size)
-elif opt.discname == 'cndtn_dcgan_netD_channel_label':
-    disc = cndtn_dcgan_netD_channel(opt.hid_size, True)
-elif opt.discname == 'cndtn_dcgan_netD_channel_img':
-    disc = cndtn_dcgan_netD_channel(opt.hid_size, False)
 else:
     raise NotImplementedError
 print('Discriminator: ', disc)
@@ -206,7 +217,10 @@ if torch.cuda.is_available():
 
 
 optimizerD = optim.Adam(disc.parameters(), lr=opt.dlr, betas=(opt.dbeta1, 0.999))
-optimizerG = optim.Adam(gen.parameters(), lr=opt.glr, betas=(opt.gbeta1, 0.999))    
+optimizerG = optim.Adam(gen.parameters(), lr=opt.glr, betas=(opt.gbeta1, 0.999))
+
+#optimizerD = optim.SGD(disc.parameters(), lr=opt.dlr)
+#optimizerG = optim.SGD(gen.parameters(), lr=opt.glr)
 
 ##########################################################
 ######################## Training ########################
@@ -219,36 +233,33 @@ for n in range(opt.num_epochs):
         
     for b in range(num_batches):
         step += 1
-        target = X_train[b*opt.batch_size:(b+1)*opt.batch_size]
-        if opt.modelname == 'StochFCDecoderCndtn':
-            input = input_all[b*opt.batch_size:(b+1)*opt.batch_size]
+        target = Y_train[b*opt.batch_size:(b+1)*opt.batch_size]
+        gen_input = gen_input_all[b*opt.batch_size:(b+1)*opt.batch_size]
+        prev_frame = X_train[b*opt.batch_size:(b+1)*opt.batch_size]
+        #prev_frame = Variable(torch.zeros((opt.batch_size, 1, 20, 20))).cuda()
         noise = Variable(torch.randn(opt.batch_size, opt.num_samples, opt.num_noise_dim)).cuda()
         
         #### Update D num_disc_steps times      
         for d_steps in range(num_disc_steps):
             disc.zero_grad()
-            if opt.discname == 'dcgan_netD' or opt.discname == 'dcgan_netD_fc':
+            if opt.discname == 'cndtn_dcgan_netD_channel_img':
+                output = disc(target, prev_frame, 1)
+            elif opt.discname == 'dcgan_netD':
                 output = disc(target)
-            elif opt.discname == 'st_FC' or opt.discname == 'st_FC_LR':
-                output = disc(target.contiguous().view(opt.batch_size, -1))
-            elif opt.discname == 'cndtn_dcgan_netD_fc' or opt.discname == 'cndtn_dcgan_netD_channel_label':
-                output = disc(target, input, 1)
             label.fill_(real_label)
             labelv = Variable(label)
             errD_real = criterion(output, labelv)
             errD_real.backward()
             D_x = output.data.mean()
             
-            gen_samples_orig = gen(input, noise, target.size())
+            gen_samples_orig = gen(gen_input, noise, target.size())
             gen_samples = gen_samples_orig.contiguous().view(opt.batch_size*opt.num_samples, target.size(1), target.size(2), target.size(3))
             label_samples.fill_(fake_label)
             labelv_samples = Variable(label_samples)
-            if opt.discname == 'dcgan_netD' or opt.discname == 'dcgan_netD_fc':
+            if opt.discname == 'cndtn_dcgan_netD_channel_img':
+                output = disc(gen_samples.detach(), prev_frame, opt.num_samples)
+            elif opt.discname == 'dcgan_netD':
                 output = disc(gen_samples.detach())
-            elif opt.discname == 'st_FC' or opt.discname == 'st_FC_LR':
-                output = disc(gen_samples.detach().contiguous().view(opt.batch_size*opt.num_samples, -1))
-            elif opt.discname == 'cndtn_dcgan_netD_fc' or opt.discname == 'cndtn_dcgan_netD_channel_label':
-                output = disc(gen_samples.detach(), input, opt.num_samples)
             errD_fake = criterion(output, labelv_samples)
             errD_fake.backward()
             D_G_z1 = output.data.mean()
@@ -260,23 +271,21 @@ for n in range(opt.num_epochs):
             gen.zero_grad()
             label_samples.fill_(real_label)
             labelv_samples = Variable(label_samples)
-            if opt.discname == 'dcgan_netD' or opt.discname == 'dcgan_netD_fc':
+            if opt.discname == 'cndtn_dcgan_netD_channel_img':
+                output = disc(gen_samples, prev_frame, opt.num_samples)
+            elif opt.discname == 'dcgan_netD':
                 output = disc(gen_samples)
-            elif opt.discname == 'st_FC' or opt.discname == 'st_FC_LR':
-                output = disc(gen_samples.contiguous().view(opt.batch_size*opt.num_samples, -1))
-            elif opt.discname == 'cndtn_dcgan_netD_fc' or opt.discname == 'cndtn_dcgan_netD_channel_label':
-                output = disc(gen_samples, input, opt.num_samples)
             errG = criterion(output, labelv_samples)
             errG.backward()
             D_G_z2 = output.data.mean()
             optimizerG.step()
 
             noise = Variable(torch.randn(opt.batch_size, opt.num_samples, opt.num_noise_dim)).cuda()
-            gen_samples_orig = gen(input, noise, target.size())
+            gen_samples_orig = gen(gen_input, noise, target.size())
             gen_samples = gen_samples_orig.contiguous().view(opt.batch_size*opt.num_samples, target.size(1), target.size(2), target.size(3))
 
-        if b%print_every==0:
-            print('Epoch: %d, Time: %s (%d %d) Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f' %(n, timeSince(start), b, b/num_batches*100, errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
+            if b%print_every==0:
+                print('Epoch: %d, Time: %s (%d %d) Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f' %(n, timeSince(start), b, b/num_batches*100, errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
             
 
         ##########################################################
@@ -310,19 +319,16 @@ for n in range(opt.num_epochs):
                     logger.histo_summary(tag+'/grad', to_np(value.grad), step)
 
 
-                if opt.hid_size > 0:
-                    val_input = Variable(torch.zeros(num_valpoints, opt.hid_size)).cuda()
-                else:
-                    val_input = None
+                val_input = gen_input_val
                 val_noise = Variable(torch.randn(num_valpoints, opt.num_samples, opt.num_noise_dim)).cuda()
                 val_samples_orig = gen(val_input, val_noise, (num_valpoints,)+target.size()[1:])
 
                 val_samples = val_samples_orig.contiguous().view(num_valpoints*opt.num_samples, target.size(1), target.size(2), target.size(3))
                 basis_1 = np.zeros((20, 20))
-                basis_1[10:13, 0:3] = 1.
+                basis_1[10:13, 1:4] = 1.
                 basis_1 = basis_1.reshape((400, 1))
                 basis_2 = np.zeros((20, 20))
-                basis_2[10:13, 4:7] = 1.
+                basis_2[10:13, 5:8] = 1.
                 basis_2 = basis_2.reshape((400, 1))
                 basis = np.concatenate((basis_1, basis_2), axis=1)
                 plt = plot_2dviz(val_samples.contiguous().data.cpu().view(num_valpoints*opt.num_samples, -1), basis, showplot=False, savepath=opt.savepath+'/2dviz/'+str(step)+'_2dviz.png')
@@ -331,10 +337,10 @@ for n in range(opt.num_epochs):
 ################ Saving and plotting #####################
 ##########################################################
 if opt.saveplot:
-    plt = plot_samples(val_samples_orig[:,:,0].data.cpu(), opt.num_gen_plts, savepath=opt.savepath+'/outputsamples.png')
+    plt = plot_cond_samples(val_input[:,0].data.cpu(), val_samples_orig[:,:,0].data.cpu(), 5, 5, savepath=opt.savepath+'/outputsamples.png')
     plt = plot_2dviz(val_samples.contiguous().data.cpu().view(num_valpoints*opt.num_samples, -1), basis, showplot=False, savepath=opt.savepath+'/2dviz.png')
 if opt.showplot:
-    plt = plot_samples(val_samples_orig[:,:,0].data.cpu(), opt.num_gen_plts, savepath=None)
+    plt = plot_cond_samples(val_input[:,0].data.cpu(), val_samples_orig[:,:,0].data.cpu(), 5, 5, savepath=None)
     plt.show()
 
 if opt.savedata:
