@@ -183,6 +183,8 @@ print('Generator: ', gen)
 
 if opt.discname == 'cndtn_dcgan_netD_channel_img':
     disc = cndtn_dcgan_netD_channel(1, False)
+elif opt.discname == 'cndtn_dcgan_netD_channel_label':
+    disc = cndtn_dcgan_netD_channel(opt.hid_size, True)
 elif opt.discname == 'dcgan_netD':
     disc = dcgan_netD()
 else:
@@ -246,6 +248,9 @@ for n in range(opt.num_epochs):
                 output = disc(target, prev_frame, 1)
             elif opt.discname == 'dcgan_netD':
                 output = disc(target)
+            elif opt.discname == 'cndtn_dcgan_netD_channel_label':
+                hidden_state = gen.get_hidden_state(gen_input)
+                output = disc(target, hidden_state.detach(), 1)
             label.fill_(real_label)
             labelv = Variable(label)
             errD_real = criterion(output, labelv)
@@ -260,6 +265,9 @@ for n in range(opt.num_epochs):
                 output = disc(gen_samples.detach(), prev_frame, opt.num_samples)
             elif opt.discname == 'dcgan_netD':
                 output = disc(gen_samples.detach())
+            elif opt.discname == 'cndtn_dcgan_netD_channel_label':
+                hidden_state = gen.get_hidden_state(gen_input)
+                output = disc(gen_samples.detach(), hidden_state.detach(), opt.num_samples)
             errD_fake = criterion(output, labelv_samples)
             errD_fake.backward()
             D_G_z1 = output.data.mean()
@@ -275,6 +283,9 @@ for n in range(opt.num_epochs):
                 output = disc(gen_samples, prev_frame, opt.num_samples)
             elif opt.discname == 'dcgan_netD':
                 output = disc(gen_samples)
+            elif opt.discname == 'cndtn_dcgan_netD_channel_label':
+                hidden_state = gen.get_hidden_state(gen_input)
+                output = disc(gen_samples, hidden_state.detach(), opt.num_samples)
             errG = criterion(output, labelv_samples)
             errG.backward()
             D_G_z2 = output.data.mean()
