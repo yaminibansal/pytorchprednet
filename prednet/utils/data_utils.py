@@ -1,5 +1,7 @@
 import hickle as hkl
 import numpy as np
+import fnmatch
+import os
 
 from torch.utils.data import Dataset
 
@@ -43,3 +45,31 @@ class kittidata(Dataset):
 
     def shuffle(self):
         self.possible_starts_N_seq = np.random.permutation(self.possible_starts)[:self.N_seq]
+
+class mnist_co(Dataset):
+    '''
+    Assumes that there is a root directory which contains each individual video
+    saved as 1.hkl, 2.hkl....N.hkl
+
+    Clip IDs may be provided or picked at random given the number to be picked
+    '''
+    def __init__(self, data_path, nt):
+        self.data_path = data_path
+        self.num_datapoints = len(fnmatch.filter(os.listdir(self.data_path), '*.hkl'))
+        self.nt = nt
+        self.indices = np.arange(self.num_datapoints)
+
+    def __len__(self):
+        return self.num_datapoints
+
+    def __getitem__(self, idx):
+        clip_path = self.data_path + '/' + str(idx) + '.hkl'
+        f = open(clip_path, 'r')
+        storage_dict = hkl.load(f)
+        f.close()
+        return storage_dict['videos'].astype(np.float32)[:, :self.nt]
+
+    def shuffle(self):
+        self.indices = np.random.permutation(self.indices)
+        
+    

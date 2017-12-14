@@ -14,7 +14,7 @@ from prednet.deterministic.ts_train import prednet_train
 from prednet.deterministic.ts_predict import prednet_predict
 from prednet.utils.plotting import plot_det_seq
 from prednet.utils.misc import timeSince
-from prednet.utils.data_utils import kittidata
+from prednet.utils.data_utils import kittidata, mnist_co
 
 import time
 import math
@@ -30,9 +30,9 @@ import matplotlib.gridspec as gridspec
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 parser.add_argument('--dataset', required=True, help='kitti')
 parser.add_argument('--train_root', required=True, help='path to training data')
-parser.add_argument('--train_src_root', required=True, help='path to training data')
+parser.add_argument('--train_src_root', help='path to training data')
 parser.add_argument('--val_root', required=True, help='path to validation data')
-parser.add_argument('--val_src_root', required=True, help='path to training data')
+parser.add_argument('--val_src_root', help='path to training data')
 parser.add_argument('--num_epochs', type=int, default=10, help='Number of training epochs')
 parser.add_argument('--samples_per_epoch', type=int, default=100, help='Number of samples trained on per epoch')
 parser.add_argument('--batch_size', type=int, default=10, help='Batch Size')
@@ -60,15 +60,20 @@ if opt.dataset == 'kitti':
     train_dataset = kittidata(opt.train_root, opt.train_src_root, num_timesteps, opt.samples_per_epoch)
     val_dataset = kittidata(opt.val_root, opt.val_src_root, num_timesteps, opt.samples_per_epoch)
     val_dataloader = DataLoader(val_dataset, 5)
+elif opt.dataset == 'mnist_center_out':
+    train_dataset = mnist_co(opt.train_root, num_timesteps)
+    val_dataset = mnist_co(opt.val_root, num_timesteps)
+    val_dataloader = DataLoader(val_dataset, 5)
 else:
     raise NotImplementedError
+
 
 if opt.modelname == 'PredNet':
     model = PredNet(opt.enc_filt_size, opt.enc_ker_size, opt.enc_pool_size, opt.hid_filt_size, opt.hid_ker_size, opt.dec_ker_size)
 
 print(model)
-num_batches = len(train_dataset)/opt.batch_size
-print_every = num_batches
+num_batches = opt.samples_per_epoch/opt.batch_size
+print_every = min(num_batches, 100)
 total_loss = [] # Reset every plot_every iters
 total_val_loss = []
 

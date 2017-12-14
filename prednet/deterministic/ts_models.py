@@ -54,7 +54,7 @@ class PredNet(nn.Module):
         self.hid_filt_size = hid_filt_size
         self.hid_ker_size = hid_ker_size
         self.dec_ker_size = dec_ker_size
-        self.pixel_max = torch.Tensor([pixel_max])
+        self.pixel_max = pixel_max #torch.Tensor([pixel_max])
         self.err_act = err_act
         self.enc_act = enc_act #currently hard coded
         self.lstm_act = lstm_act #currently hard coded
@@ -122,7 +122,8 @@ class PredNet(nn.Module):
             E[layer] = torch.cat((pos_err, neg_err), dim=1)
 
         # Produce the output
-        output = torch.clamp(Ahat[0], max=self.pixel_max)
+        #output = torch.clamp(Ahat[0], max=self.pixel_max)
+        output = Ahat[0]
 
         return R, E, output
 
