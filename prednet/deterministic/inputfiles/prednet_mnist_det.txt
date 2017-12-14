@@ -1,3 +1,5 @@
+--randomseed
+-1
 --dataset
 mnist_center_out
 --train_root
@@ -5,7 +7,7 @@ mnist_center_out
 --val_root
 /home/ybansal/Documents/Research/pytorchprednet/Data/MNIST/deterministic/val
 --num_epochs
-2
+1
 --samples_per_epoch
 50000
 --batch_size
@@ -46,6 +48,7 @@ PredNet
 3
 --lr
 0.001
+--savedata
 --savepath
 /home/ybansal/Documents/Research/pytorchprednet/Data/MNIST/Results/mnist_det
 --num_inp_plts
