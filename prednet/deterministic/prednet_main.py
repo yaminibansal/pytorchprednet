@@ -1,3 +1,5 @@
+print('hello 1')
+
 import argparse
 
 import numpy as np
@@ -24,11 +26,14 @@ import hickle as hkl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
+print('hello 2')
+
 ##########################################################
 ###### Defining the input arguments for the parser #######
 ##########################################################
 
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+print('hello 3')
 parser.add_argument('--randomseed', type=int, required=True, help='Give -1 to pick seed randomly')
 parser.add_argument('--dataset', required=True, help='kitti')
 parser.add_argument('--train_root', required=True, help='path to training data')
@@ -50,7 +55,7 @@ parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for o
 parser.add_argument('--savedata', action='store_true', help='Save final model etc')
 parser.add_argument('--savepath', help='Path for saving the plots')
 parser.add_argument('--num_inp_plts', type=int, help='Number of input data sequences to be plotted')
-
+print('hello 4')
 opt = parser.parse_args()
 print(opt)
 
@@ -76,10 +81,12 @@ if opt.savedata:
     except OSError:
         pass
 
+print('hello 5')
+
 if opt.dataset == 'kitti':
     train_dataset = kittidata(opt.train_root, opt.train_src_root, num_timesteps, opt.samples_per_epoch)
     val_dataset = kittidata(opt.val_root, opt.val_src_root, num_timesteps, opt.samples_per_epoch)
-    val_dataloader = DataLoader(val_dataset, 5)
+    val_dataloader = DataLoader(val_dataset, 1)
 elif opt.dataset == 'mnist_center_out':
     train_dataset = mnist_co(opt.train_root, num_timesteps)
     val_dataset = mnist_co(opt.val_root, num_timesteps)
@@ -87,13 +94,14 @@ elif opt.dataset == 'mnist_center_out':
 else:
     raise NotImplementedError
 
+print('hello 6')
 
 if opt.modelname == 'PredNet':
     model = PredNet(opt.enc_filt_size, opt.enc_ker_size, opt.enc_pool_size, opt.hid_filt_size, opt.hid_ker_size, opt.dec_ker_size)
 
 print(model)
 num_batches = opt.samples_per_epoch/opt.batch_size
-print_every = min(num_batches, 100)
+print_every = min(num_batches, 1)
 total_loss = [] # Reset every plot_every iters
 total_val_loss = []
 
@@ -103,17 +111,22 @@ if torch.cuda.is_available():
 criterion = nn.L1Loss()
 optimizer = optim.Adam(model.parameters(), lr=opt.lr)
 
+print('hello 7')
+
 start = time.time()
 for n in range(opt.num_epochs):
     train_dataset.shuffle() #shuffle data for every epoch and then train sequentially
     train_dataloader = DataLoader(train_dataset, opt.batch_size, shuffle=True)
+    print('hello 8')
     
     for b, input in enumerate(train_dataloader):
         input = Variable(input, requires_grad=False)
+#        print('hello 9')
         target = input
         if torch.cuda.is_available:
             input = input.cuda()
             target = target.cuda()
+#        print('hello 10')
 
 
         output, loss = prednet_train(model, optimizer, criterion, input, target)
@@ -132,10 +145,12 @@ for n in range(opt.num_epochs):
         val_output, val_loss = prednet_predict(model, criterion, val_input, val_target)
         sum_val_loss += val_loss
     total_val_loss += [sum_val_loss/num_batches]
+
+    print('hello 11')
             
-##########################################################
-######################Store & Plot########################
-##########################################################
+# ##########################################################
+# ######################Store & Plot########################
+# ##########################################################
 
 plt = plot_det_seq(val_input[:,:,0].data.cpu(), val_output[:,:,0].data.cpu(), opt.num_inp_plts, seq_ind=[2, 0], savepath=opt.savepath+'/'+str(rseed)+'outputsamples.png')
 
