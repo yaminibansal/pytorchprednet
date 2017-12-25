@@ -86,6 +86,8 @@ class PredNet(nn.Module):
                 self.__setattr__('decAct'+str(layer), nn.ReLU())
                 self.__setattr__('errAct'+str(layer), nn.ReLU())
                 self.__setattr__('deconvDec'+str(layer),  nn.UpsamplingNearest2d(scale_factor=enc_pool_size[layer]) )
+
+        self.init_conv_glorot()
                 
     def forward(self, input, hidden, errors):
         '''
@@ -158,6 +160,31 @@ class PredNet(nn.Module):
                 R[layer] = self.__getattr__('convLSTM'+str(layer))(Rin[layer], R[layer])
         
         return R, E
+
+    def init_conv_glorot(self):
+        #Initialize the convolutional layers
+        for layer in range(self.num_layers):
+            # Convolutional Encoder
+            if layer != 0:
+                fan_in = 2*self.enc_filt_size[layer-1]
+                fan_out = self.enc_filt_size[layer]
+                receptive_field = self.enc_ker_size[layer]
+                stdv = np.sqrt(6./(fan_in+fan_out))
+                self.__getattr__('convEnc'+str(layer)).weight.data.uniform_(-stdv, stdv)
+                self.__getattr__('convEnc'+str(layer)).bias.data.zero_()
+
+            # Convolutional Decoder
+            fan_in = self.enc_filt_size[layer]
+            fan_out = self.hid_filt_size[layer]
+            receptive_field = self.dec_ker_size[layer]**2
+            stdv = np.sqrt(6./(fan_in+fan_out))
+            self.__getattr__('convDec'+str(layer)).weight.data.uniform_(-stdv, stdv)
+            self.__getattr__('convDec'+str(layer)).bias.data.zero_()
+
+            
+
+        #Initialize the ConvLSTM layers
+        #This is implemented in the ConvLSTM2D Cell code
 
 
 class SingleLSTMEncDec(nn.Module):

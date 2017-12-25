@@ -305,5 +305,37 @@ def plot_loss(plt, loss):
     '''
     Plots the loss function during training
     '''
+
+def plot_single_ts(target, samples, savepath):
+    import matplotlib as mpl
+    mpl.use('Agg')
+    import matplotlib.pyplot as plt
+    plt.ioff() 
+    import matplotlib.gridspec as gridspec
+    import imageio
+    plt.clf()
+
+
+    gs = gridspec.GridSpec(1, 2)
+    gs.update(wspace=.2, hspace=0.2)
+#    images = []
+    images_test = []
+    
+    num_timesteps = target.size(1)
+    for t in range(num_timesteps):
+        # plt.subplot(gs[0])
+        # plt.imshow(target[0,t].numpy(), interpolation='None')
+        # plt.title('Original')
+
+        # plt.subplot(gs[1])
+        # plt.imshow(samples[0,t].numpy(), interpolation='None')
+        # plt.title('Predicted')
+
+        # plt.savefig(savepath+'_'+str(t)+'.png')
+        # images.append(imageio.imread(savepath+'_'+str(t)+'.png'))
+        images_test.append(np.concatenate((target[0,t].numpy(), samples[0,t].numpy()), axis=1))
+#    imageio.mimsave(savepath+'.gif', images, fps=2)
+    imageio.mimsave(savepath+'.gif', images_test, fps=2)
+        
     
     
