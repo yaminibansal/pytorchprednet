@@ -7,9 +7,11 @@ mnist_center_out
 --val_root
 /home/ybansal/Documents/Research/pytorchprednet/Data/MNIST/deterministic/val
 --num_epochs
-1
+2
 --samples_per_epoch
 50000
+--num_valpoints
+10
 --batch_size
 25
 --num_t
@@ -53,3 +55,8 @@ PredNet
 /home/ybansal/Documents/Research/pytorchprednet/Data/MNIST/Results/mnist_det
 --num_inp_plts
 2
+--log
+--log_every
+500
+--num_log_seqs
+5
