@@ -53,9 +53,14 @@ class mnist_co(Dataset):
 
     Clip IDs may be provided or picked at random given the number to be picked
     '''
-    def __init__(self, data_path, nt):
+    def __init__(self, data_path, nt, num_datapoints=None):
         self.data_path = data_path
-        self.num_datapoints = len(fnmatch.filter(os.listdir(self.data_path), '*.hkl'))
+        self.num_totalpoints = len(fnmatch.filter(os.listdir(self.data_path), '*.hkl'))
+        if num_datapoints is not None:
+            self.num_datapoints = num_datapoints
+        else:
+            self.num_datapoints = self.num_totalpoints
+        assert num_datapoints <= self.num_totalpoints
         self.nt = nt
         self.indices = np.arange(self.num_datapoints)
 
@@ -67,7 +72,7 @@ class mnist_co(Dataset):
         f = open(clip_path, 'r')
         storage_dict = hkl.load(f)
         f.close()
-        return storage_dict['videos'].astype(np.float32)[:, :self.nt]
+        return storage_dict['videos'].astype(np.float32)[:self.nt]
 
     def shuffle(self):
         self.indices = np.random.permutation(self.indices)
