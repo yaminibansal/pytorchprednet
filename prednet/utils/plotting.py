@@ -312,13 +312,14 @@ def plot_single_ts(target, samples, savepath):
     # import matplotlib.pyplot as plt
     # plt.ioff() 
     # import matplotlib.gridspec as gridspec
-    # import imageio
+    
     # plt.clf()
 
 
     # gs = gridspec.GridSpec(1, 2)
     # gs.update(wspace=.2, hspace=0.2)
 #    images = []
+    import imageio
     images_test = []
     
     num_timesteps = target.size(1)
